@@ -128,6 +128,14 @@ public class MsalAuthenticator : IDisposable
             new KeyValuePair<string, string>("application", "OneLauncher"),
             new KeyValuePair<string, string>("version", "1"));
 #endif
+#if MACOS
+        // The same MSAL Extensions versions also leave the macOS Keychain service
+        // and account names null. MacKeychainAccessor rejects a null service name
+        // before the cache can be created.
+        storageBuilder.WithMacKeyChain(
+            "com.onelauncher.msal",
+            "onelauncher.msal.cache");
+#endif
 
         try
         {
