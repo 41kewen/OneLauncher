@@ -12,6 +12,28 @@ Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://raw
 
 安装脚本可选择仅下载启动器，或同时安装 .NET 10 Desktop Runtime 与 Java 21。
 
+## Linux x64
+
+从 [Releases](https://github.com/zhweaa/OneLauncher/releases) 下载 `OneLauncher-linux-x64.tar.gz` 和同名 `.sha256` 文件，放在同一目录后运行：
+
+```bash
+sha256sum -c OneLauncher-linux-x64.tar.gz.sha256
+tar -xzf OneLauncher-linux-x64.tar.gz
+cd OneLauncher-linux-x64
+./OneLauncher.Desktop
+```
+
+Linux 包自带 .NET 10 运行时，适用于使用 glibc 的 x86-64 桌面系统。需要 X11 桌面会话；Wayland 桌面请启用 XWayland。建议解压到用户可写目录，保留目录内所有文件。
+
+Ubuntu 22.04 / 24.04 如缺少桌面依赖，可安装：
+
+```bash
+sudo apt update
+sudo apt install libx11-6 libice6 libsm6 libfontconfig1 libxrandr2 libxi6 libxcursor1 libglib2.0-0 libgl1 libegl1 libsecret-1-0 xdg-utils
+```
+
+系统还需提供 .NET 的原生依赖（ICU、OpenSSL、zlib 等，常规桌面安装通常已具备）。Minecraft 使用的 Java 可由启动器管理。Linux 上 Microsoft 登录使用系统浏览器；Windows WAM 登录与 MCT 联机不可用。
+
 ## 开发
 
 ### 环境要求
@@ -34,6 +56,18 @@ dotnet run --project OneLauncher.Desktop
 ```powershell
 dotnet publish OneLauncher.Desktop -c Release -r win-x64 --self-contained false
 ```
+
+发布 Linux x64（在 Linux 或 WSL 中执行，使用 `global.json` 指定的 .NET 10 SDK）：
+
+```bash
+bash scripts/publish-linux.sh
+# 可选：指定产物输出目录
+bash scripts/publish-linux.sh /tmp/onelauncher-linux
+```
+
+默认产物为 `artifacts/linux-x64/OneLauncher-linux-x64.tar.gz` 和对应的 `.sha256` 校验文件。脚本发布自包含程序，不启用 AOT 或裁剪，并保留 Linux 可执行权限。项目的平台条件编译依赖构建宿主系统，因此 Linux 包应在 Linux 上构建。
+
+GitHub Actions 的 **Desktop builds** 工作流使用同一 SDK，在 Windows 与 Ubuntu 上分别构建；推送到 `master`、提交 PR 或手动触发后，可从运行页面下载 `OneLauncher-linux-x64` 产物。工作流仅上传构建产物，Release 文件由维护者发布。
 
 ### 命令行入口
 
