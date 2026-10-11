@@ -40,7 +40,9 @@ class Program
             })
             .With(new X11PlatformOptions()
             { 
-                RenderingMode = [X11RenderingMode.Vulkan,X11RenderingMode.Egl,X11RenderingMode.Glx,X11RenderingMode.Software]
+                // GLX provides the alpha-capable X11 visual needed by rounded popups.
+                // Avalonia 11's Vulkan/EGL paths use an opaque visual, leaving black corners.
+                RenderingMode = [X11RenderingMode.Glx, X11RenderingMode.Software]
             })
             .LogToTrace();
 }

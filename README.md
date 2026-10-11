@@ -69,6 +69,16 @@ bash scripts/publish-linux.sh /tmp/onelauncher-linux
 
 GitHub Actions 的 **Desktop builds** 工作流使用同一 SDK，在 Windows 与 Ubuntu 上分别构建；推送到 `master`、提交 PR 或手动触发后，可从运行页面下载 `OneLauncher-linux-x64` 产物。工作流仅上传构建产物，Release 文件由维护者发布。
 
+### 桌面快捷启动
+
+在实例或服务器编辑面板点击“创建桌面快捷启动”。Linux 会生成可执行的 `.desktop` 文件，并通过 `gio` 尝试标记为可信，双击即可启动对应实例或加入服务器。若桌面环境不支持自动信任，请右键快捷方式选择“允许启动”（部分桌面环境称“信任并启动”）。旧版本生成的 `.sh` 不会自动转换，请重新创建快捷方式。
+
+Linux 快捷方式回归检查（需要 `gio` 和 `desktop-file-validate`，会临时创建并清理测试快捷方式）：
+
+```bash
+dotnet run --project tests/DesktopShortcut.Tests -c Release
+```
+
 ### 命令行入口
 
 ```text

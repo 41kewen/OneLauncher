@@ -112,18 +112,21 @@ internal partial class EditGameDataPaneViewModel : BaseViewModel
         Tools.OpenFolder(modsPath);
     }
     [RelayCommand]
-    private void AddToQuicklyPlay()
+    private async Task AddToQuicklyPlay()
     {
-        File.WriteAllTextAsync(
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop),$"快速启动 - {editingGameData.Name}"+
-            #if WINDOWS
-            ".bat"
-            #else
-            ".sh"
-            #endif
-            ), 
-            $"{Environment.ProcessPath} --quicklyPlay {editingGameData.InstanceId}"
-            );
+        try
+        {
+            bool trusted = await DesktopShortcut.CreateAsync(
+                $"快速启动 - {editingGameData.Name}", "--quicklyPlay", editingGameData.InstanceId);
+            WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage(
+                trusted ? "已创建桌面快捷启动。" : "已创建桌面快捷启动，请右键快捷方式选择“允许启动”。",
+                trusted ? NotificationType.Success : NotificationType.Warning));
+        }
+        catch (Exception ex)
+        {
+            WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage(
+                $"创建桌面快捷启动失败：{ex.Message}", NotificationType.Error));
+        }
     }
     [RelayCommand]
     private async Task CopyThisInstance()

@@ -127,35 +127,12 @@ internal partial class EditServerPaneViewModel : BaseViewModel
     [RelayCommand]
     private async Task AddToQuicklyPlay()
     {
-        string? processPath = Environment.ProcessPath;
-        if (string.IsNullOrWhiteSpace(processPath))
-        {
-            ShowMessage("无法获取启动器程序路径。", NotificationType.Error);
-            return;
-        }
-
-        string shortcutName = GetSafeFileName(_editingServer.Name);
-        string shortcutPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-            $"快速加入 - {shortcutName}" +
-#if WINDOWS
-            ".bat"
-#else
-            ".sh"
-#endif
-        );
-
-        string command =
-#if WINDOWS
-            $"@echo off{Environment.NewLine}\"{processPath}\" --joinServer {_editingServer.Id}{Environment.NewLine}";
-#else
-            $"#!/bin/sh{Environment.NewLine}\"{processPath}\" --joinServer {_editingServer.Id}{Environment.NewLine}";
-#endif
-
         try
         {
-            await File.WriteAllTextAsync(shortcutPath, command);
-            ShowMessage("已创建服务器桌面快捷启动。", NotificationType.Success);
+            bool trusted = await DesktopShortcut.CreateAsync(
+                $"快速加入 - {_editingServer.Name}", "--joinServer", _editingServer.Id.ToString());
+            ShowMessage(trusted ? "已创建服务器桌面快捷启动。" : "已创建桌面快捷启动，请右键快捷方式选择“允许启动”。",
+                trusted ? NotificationType.Success : NotificationType.Warning);
         }
         catch (Exception ex)
         {
@@ -214,15 +191,6 @@ internal partial class EditServerPaneViewModel : BaseViewModel
         await _dbManager.Save();
         ShowMessage($"已删除服务器收藏“{_editingServer.Name}”。", NotificationType.Success);
         Cancel();
-    }
-
-    private static string GetSafeFileName(string name)
-    {
-        char[] invalidChars = Path.GetInvalidFileNameChars();
-        string safeName = new(name
-            .Select(character => invalidChars.Contains(character) ? '_' : character)
-            .ToArray());
-        return string.IsNullOrWhiteSpace(safeName) ? "服务器" : safeName;
     }
 
     private static void ShowMessage(string message, NotificationType type)
