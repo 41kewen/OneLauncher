@@ -140,28 +140,15 @@ internal partial class HomePageViewModel : BaseViewModel
                     return;
 
                 string path = selectedFile.Path.LocalPath;
-                if (!File.Exists(Path.Combine(path, "PCL", "Setup.ini")))
-                {
-                    WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("这不是有效的PCL版本文件夹", NotificationType.Warning, "导入失败"));
-                    return;
-                }
                 WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("正在导入。。。（这可能需要较长时间）"));
-                await new PCL2Importer(new Progress<(DownProgress Title, int AllFiles, int DownedFiles, string DowingFileName)>(p =>
+                var importer = new PCL2Importer(new Progress<(DownProgress Title, int AllFiles, int DownedFiles, string DowingFileName)>(p =>
                 {
-                    // 避免安装器进度报告过于频繁
-                    if (p.Title == DownProgress.DownAndInstModFiles)
-                        return;
-                    WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage(
-                        $"[{p.DownedFiles}/{p.AllFiles}] 操作:{p.DowingFileName}",
-                        NotificationType.Information,
-                        p.Title switch
-                        {
-                            DownProgress.Meta => "正在分析PCL2实例",
-                            DownProgress.Done => "导入完成",
-                            _ => "操作中"
-                        } + " - 正在导入"));
-                    Debug.WriteLine($"Titli:{p.Title}\nAll:{p.AllFiles},Down:{p.DownedFiles}\nOutput:\n{p.DowingFileName}");
-                })).ImportAsync(path);
+                    // 文件级进度不创建大量独立通知，只显示阶段切换。
+                    if (p.Title == DownProgress.Meta)
+                        WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage(p.DowingFileName, NotificationType.Information, "PCL 导入"));
+                }));
+                await importer.ImportAsync(path);
+                SelectedGameData = importer.ImportedInstance;
                 WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("导入完成！", NotificationType.Success));
             }
         }

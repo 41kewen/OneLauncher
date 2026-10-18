@@ -49,7 +49,8 @@ public class GameLauncher : IGameLauncher, IDisposable
             await File.WriteAllTextAsync(optionsPath, "lang:zh_CN");
         LaunchCommandBuilder commandBuilder = (await LaunchCommandBuilder.CreateAsync(
                 gameRootPath,
-                gameData.VersionId
+                gameData.VersionId,
+                gameData.HasImportedLaunchManifest ? Path.Combine(gameData.InstancePath, "launch.json") : null
             ));
         commandBuilder
             .SetLoginUser(accountManager.GetUser(gameData.DefaultUserModelID) ?? throw new OlanException("启动失败","找不到你想要启动的用户"))
