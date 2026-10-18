@@ -402,93 +402,154 @@ public partial class Download : IDisposable
         int maxConcurrentDownloads,
         CancellationToken token)
     {
+        return RunDownloadListAsync(progress, downloadNds, maxConcurrentDownloads, token);
+    }
+
+    private async Task RunDownloadListAsync(
+        IProgress<(int completedFiles, string FilesName)> progress,
+        List<NdDowItem> downloadNds,
+        int maxConcurrentDownloads,
+        CancellationToken token)
+    {
         int completedFiles = 0;
 
-        return Parallel.ForEachAsync(
-            downloadNds,
-            new ParallelOptions
-            {
-                MaxDegreeOfParallelism = maxConcurrentDownloads,
-                CancellationToken = token
-            },
-            async (item, ct) =>
-            {
-                try
+        try
+        {
+            await Parallel.ForEachAsync(
+                downloadNds,
+                new ParallelOptions
                 {
-                    // 原子递增已完成文件数
-                    Interlocked.Increment(ref completedFiles);
-                    // 报告进度
-                    progress?.Report((completedFiles, item.url));
-                    // 执行下载操作
-                    await DownloadFile(item.url, item.path, ct);
-                }
-                catch (HttpRequestException ex)
+                    MaxDegreeOfParallelism = maxConcurrentDownloads,
+                    CancellationToken = token
+                },
+                async (item, ct) =>
                 {
-                    for (int attempt = 0; attempt < 3; attempt++)
+                    try
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), ct);
-                        try
-                        {
-                            await DownloadFile(item.url, item.path, ct);
-                            return; // 成功下载，退出重试循环
-                        }
-                        catch (HttpRequestException ex2)
-                        {
-                            Debug.WriteLine($"重试下载失败: {ex2.Message}, URL: {item.url}");
-                            continue;
-                        }
+                        // 原子递增已完成文件数
+                        Interlocked.Increment(ref completedFiles);
+                        // 报告进度
+                        progress?.Report((completedFiles, item.url));
+                        // 执行下载操作
+                        await DownloadFile(item.url, item.path, ct);
                     }
-                    throw new OlanException("下载失败", "重试到达阈值抛出", OlanExceptionAction.Error, ex);
-                }
-            });
+                    catch (HttpRequestException ex)
+                    {
+                        for (int attempt = 0; attempt < 3; attempt++)
+                        {
+                            await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), ct);
+                            try
+                            {
+                                await DownloadFile(item.url, item.path, ct);
+                                return; // 成功下载，退出重试循环
+                            }
+                            catch (HttpRequestException ex2)
+                            {
+                                Debug.WriteLine($"重试下载失败: {ex2.Message}, URL: {item.url}");
+                                continue;
+                            }
+                        }
+                        throw new OlanException("下载失败", "重试到达阈值抛出", OlanExceptionAction.Error, ex);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        // 取消下载不进入重试，也不转换为失败。
+                    }
+                });
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // 并行下载已取消，保持任务的已取消状态。
+        }
     }
     public async Task DownloadFile(string url,string savepath, CancellationToken? token = null)
     {
         if (string.IsNullOrEmpty(url))
             return;
         CancellationToken cancellationToken = token ?? CancellationToken.None;
-        using (var response = await UnityClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead,cancellationToken))
+        string temporaryPath = GetTemporaryDownloadPath(savepath);
+        try
         {
-            response.EnsureSuccessStatusCode();
-            using (var httpStream = await response.Content.ReadAsStreamAsync(cancellationToken))
+            using (var response = await UnityClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead,cancellationToken))
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(savepath)
-                    ?? throw new OlanException("写入文件失败",$"无法找到文件'{savepath}'所对应的文件夹"));
-                using (var fileStream = new FileStream(savepath, FileMode.Create, FileAccess.Write, FileShare.Write, bufferSize: 8192, useAsync: true))
+                response.EnsureSuccessStatusCode();
+                using (var httpStream = await response.Content.ReadAsStreamAsync(cancellationToken))
                 {
-                    await httpStream.CopyToAsync(fileStream, 8192,cancellationToken);
+                    Directory.CreateDirectory(Path.GetDirectoryName(savepath)
+                        ?? throw new OlanException("写入文件失败",$"无法找到文件'{savepath}'所对应的文件夹"));
+                    using (var fileStream = new FileStream(temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 8192, useAsync: true))
+                    {
+                        await httpStream.CopyToAsync(fileStream, 8192,cancellationToken);
+                    }
                 }
             }
+
+            File.Move(temporaryPath, savepath, true);
+        }
+        catch
+        {
+            DeleteTemporaryDownload(temporaryPath);
+            throw;
+        }
+    }
+
+    private static string GetTemporaryDownloadPath(string savepath) => $"{savepath}.downloading";
+
+    private static void DeleteTemporaryDownload(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch (IOException)
+        {
+            // 清理失败不能覆盖原始下载异常。
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // 清理失败不能覆盖原始下载异常。
         }
     }
     public async Task DownloadFileAndSha1(string url, string savepath,string sha1, CancellationToken token)
     {
-        using (var response = await UnityClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, token))
+        string temporaryPath = GetTemporaryDownloadPath(savepath);
+        try
         {
-            response.EnsureSuccessStatusCode();
-            using (var httpStream = await response.Content.ReadAsStreamAsync(token))
+            using (var response = await UnityClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, token))
             {
-                var directory = Path.GetDirectoryName(savepath);
-                if (!string.IsNullOrEmpty(directory))
-                    Directory.CreateDirectory(directory);
-                using (var fileStream = new FileStream(savepath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, bufferSize: 8192, useAsync: true))
+                response.EnsureSuccessStatusCode();
+                using (var httpStream = await response.Content.ReadAsStreamAsync(token))
                 {
-                    await httpStream.CopyToAsync(fileStream, 8192, token);
-                    fileStream.Position = 0;
-                    using (var sha1Hash = SHA1.Create())
+                    var directory = Path.GetDirectoryName(savepath);
+                    if (!string.IsNullOrEmpty(directory))
+                        Directory.CreateDirectory(directory);
+                    using (var fileStream = new FileStream(temporaryPath, FileMode.Create, FileAccess.ReadWrite, FileShare.None, bufferSize: 8192, useAsync: true))
                     {
-                        byte[] hash = await sha1Hash.ComputeHashAsync(fileStream,token);
-                        string calculatedSha1 = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-                        if (!string.Equals(calculatedSha1, sha1, StringComparison.OrdinalIgnoreCase))
+                        await httpStream.CopyToAsync(fileStream, 8192, token);
+                        fileStream.Position = 0;
+                        using (var sha1Hash = SHA1.Create())
                         {
-                            throw new OlanException(
-                                "下载失败",
-                                $"无法校验文件({savepath})Sha1，实际：{calculatedSha1}预期：{sha1}",
-                                OlanExceptionAction.Warning);
+                            byte[] hash = await sha1Hash.ComputeHashAsync(fileStream,token);
+                            string calculatedSha1 = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                            if (!string.Equals(calculatedSha1, sha1, StringComparison.OrdinalIgnoreCase))
+                            {
+                                throw new OlanException(
+                                    "下载失败",
+                                    $"无法校验文件({savepath})Sha1，实际：{calculatedSha1}预期：{sha1}",
+                                    OlanExceptionAction.Warning);
+                            }
                         }
                     }
                 }
             }
+
+            File.Move(temporaryPath, savepath, true);
+        }
+        catch
+        {
+            DeleteTemporaryDownload(temporaryPath);
+            throw;
         }
     }
     public List<NdDowItem> CheckFilesExists(List<NdDowItem> FDI, CancellationToken token)
@@ -498,7 +559,13 @@ public partial class Download : IDisposable
         {
             token.ThrowIfCancellationRequested();
             if (File.Exists(item.path))
-                continue;
+            {
+                // 取消下载可能留下旧版本的残缺目标文件；长度明显不符时强制重新下载。
+                if (item.size <= 0 || new FileInfo(item.path).Length == item.size)
+                    continue;
+
+                DeleteTemporaryDownload(item.path);
+            }
             filesToDownload.Add(item);
         }
         return filesToDownload;

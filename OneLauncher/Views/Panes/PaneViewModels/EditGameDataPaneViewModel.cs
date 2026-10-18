@@ -151,6 +151,11 @@ internal partial class EditGameDataPaneViewModel : BaseViewModel
         WeakReferenceMessenger.Default.Send(
             new MainWindowShowFlyoutMessage("已以此拷贝实例！",NotificationType.Success));
     }
+    [RelayCommand]
+    private async Task ZipThisInstance()
+    {
+
+    }
     #endregion
     #region 基本选项
     [RelayCommand]

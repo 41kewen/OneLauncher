@@ -7,6 +7,7 @@ using OneLauncher.Core.Helper.Models;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -86,12 +87,13 @@ public class ModpackImporter : IDisposable
         );
         Directory.CreateDirectory(packGameData.InstancePath);
 
-        // --- 步骤 3: 安装基础游戏和Mod加载器 ---
-        await InstallBaseGameAsync(packGameData, progress, token);
+        // --- 步骤 3: 先应用覆盖文件，使其可参与清单文件查重 ---
+        await InstallModpackFilesAsync(parser, packGameData, progress, token);
         token.ThrowIfCancellationRequested();
 
-        // --- 步骤 4: 安装整合包特定文件 (Mods 和 Overrides) ---
-        await InstallModpackFilesAsync(parser, packGameData, progress, token);
+        // --- 步骤 4: 仅在基础游戏或指定加载器版本缺失时安装 ---
+        if (!IsBaseGameAndLoaderInstalled(packGameData, loaderType, loaderVersion))
+            await InstallBaseGameAsync(packGameData, progress, token);
         token.ThrowIfCancellationRequested();
 
         // --- 步骤 5: 注册新的游戏实例并保存 ---
@@ -126,10 +128,16 @@ public class ModpackImporter : IDisposable
     /// </summary>
     private async Task InstallModpackFilesAsync(MrpackParser parser, GameData gameData, IProgress<(DownProgress Title, int AllFiles, int DownedFiles, string DowingFileName)> progress, CancellationToken token)
     {
-        // --- 下载 Mods ---
-        string modsDir = Path.Combine(gameData.InstancePath, "mods");
-        Directory.CreateDirectory(modsDir);
-        var filesToDownload = parser.GetModFiles(modsDir);
+        // --- 应用 Overrides before checking the manifest files ---
+        progress.Report((DownProgress.Meta, 0, 0, "正在应用覆盖文件..."));
+        string overridesSourceDir = Path.Combine(_tempWorkDir, "overrides");
+        if (Directory.Exists(overridesSourceDir))
+            await Tools.CopyDirectoryAsync(overridesSourceDir, gameData.InstancePath, token);
+
+        // --- 下载清单中目标文件尚不存在的文件 ---
+        var filesToDownload = parser.GetModFiles(gameData.InstancePath)
+            .Where(file => !File.Exists(file.path))
+            .ToList();
 
         if (filesToDownload.Any())
         {
@@ -144,14 +152,57 @@ public class ModpackImporter : IDisposable
             await Init.Download.DownloadListAsync(modProgress, filesToDownload, _dbManager.Data.OlanSettings.MaximumDownloadThreads, token);
         }
 
-        // --- 应用 Overrides ---
-        progress.Report((DownProgress.Meta, 0, 0, "正在应用覆盖文件..."));
-        string overridesSourceDir = Path.Combine(_tempWorkDir, "overrides");
-        if (Directory.Exists(overridesSourceDir))
+    }
+
+    private bool IsBaseGameAndLoaderInstalled(GameData gameData, ModEnum loaderType, string loaderVersion)
+    {
+        var installedVersion = _dbManager.Data.VersionList.FirstOrDefault(version =>
+            version.VersionID == gameData.VersionId && version.modType.ToModEnum() == loaderType);
+        if (installedVersion == null)
+            return false;
+
+        string loaderMetadataPath = Path.Combine(_gameRootPath, "versions", gameData.VersionId,
+            loaderType switch
+            {
+                ModEnum.fabric => "version.fabric.json",
+                ModEnum.quilt => "version.quilt.json",
+                ModEnum.forge => "version.forge.json",
+                ModEnum.neoforge => "version.neoforge.json",
+                _ => "version.json"
+            });
+
+        if (loaderType == ModEnum.none)
+            return File.Exists(loaderMetadataPath);
+        if (!File.Exists(loaderMetadataPath))
+            return false;
+
+        using var metadata = JsonDocument.Parse(File.ReadAllText(loaderMetadataPath));
+        return ContainsLoaderVersion(metadata.RootElement, loaderVersion);
+    }
+
+    private static bool ContainsLoaderVersion(JsonElement element, string loaderVersion)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
         {
-            // 使用你已经编写的健壮的目录复制方法
-            await Tools.CopyDirectoryAsync(overridesSourceDir, gameData.InstancePath, token);
+            foreach (var property in element.EnumerateObject())
+            {
+                if (property.NameEquals("version") && property.Value.ValueKind == JsonValueKind.String &&
+                    property.Value.GetString() == loaderVersion)
+                    return true;
+                if (property.NameEquals("id") && property.Value.ValueKind == JsonValueKind.String &&
+                    property.Value.GetString()!.Contains(loaderVersion, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                if (ContainsLoaderVersion(property.Value, loaderVersion))
+                    return true;
+            }
         }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+                if (ContainsLoaderVersion(item, loaderVersion))
+                    return true;
+        }
+        return false;
     }
 
     /// <summary>

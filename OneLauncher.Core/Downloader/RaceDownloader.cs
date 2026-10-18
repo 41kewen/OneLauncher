@@ -23,13 +23,30 @@ public class RaceDownloader
         IProgress<string> progress,
         CancellationToken token)
     {
-        return Parallel.ForEachAsync(basicItems,
-            new ParallelOptions { MaxDegreeOfParallelism = maxParallelism, CancellationToken = token },
-            async (item, ct) =>
-            {
-                await RaceSingleFileAsync(item, ct);
-                progress?.Report(Path.GetFileName(item.FirstOrDefault().path));
-            });
+        return RunRaceManyFilesAsync(basicItems, maxParallelism, progress, token);
+    }
+
+    private async Task RunRaceManyFilesAsync(
+        IEnumerable<IEnumerable<NdDowItem>> basicItems,
+        int maxParallelism,
+        IProgress<string> progress,
+        CancellationToken token)
+    {
+        try
+        {
+            await Parallel.ForEachAsync(basicItems,
+                new ParallelOptions { MaxDegreeOfParallelism = maxParallelism, CancellationToken = token },
+                async (item, ct) =>
+                {
+                    await RaceSingleFileAsync(item, ct);
+                    if (!ct.IsCancellationRequested)
+                        progress?.Report(Path.GetFileName(item.FirstOrDefault().path));
+                });
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // 并行下载中的取消由调用方继续处理，不转换为失败。
+        }
     }
 
     public async Task RaceSingleFileAsync(
@@ -53,17 +70,19 @@ public class RaceDownloader
         try
         {
             HttpResponseMessage winnerResponse = await winnerTask;
-            // 先不着急取消任务，先检查是否成功
+            // 保留获胜响应的取消令牌，直到内容读取完成；否则会把获胜源的响应流一起取消。
             if (winnerResponse.IsSuccessStatusCode)
-            {
                 successfulResponse = winnerResponse;
-                await cts.CancelAsync();
-            }
             else winnerResponse.Dispose();
         }
         catch (HttpRequestException)
         {
             // 如果失败了，等待回退
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // 用户取消了下载，取消不是下载失败。
+            return;
         }
         #endregion
         #region 回退机制
@@ -79,7 +98,6 @@ public class RaceDownloader
                     if (response.IsSuccessStatusCode)
                     {
                         successfulResponse = response;
-                        await cts.CancelAsync();
                         break; // 找到一个成功的响应就停止
                     }
                     else response.Dispose(); 
@@ -87,6 +105,10 @@ public class RaceDownloader
                 catch (HttpRequestException)
                 {
                     // 忽略失败的请求
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    return;
                 }
             }
         }
@@ -97,12 +119,33 @@ public class RaceDownloader
         }
         #endregion
 
-        await ReadResponseAndWriteToFileAsync(
-            successfulResponse, 
-            // 这里不关心下载地址是什么，只关心保存路径
-            item.FirstOrDefault(), 
-            token);
-        successfulResponse.Dispose();
+        try
+        {
+            await ReadResponseAndWriteToFileAsync(
+                successfulResponse,
+                // 这里不关心下载地址是什么，只关心保存路径
+                item.FirstOrDefault(),
+                token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // 内容流因用户取消而结束，交给上层按取消流程收尾。
+            return;
+        }
+        finally
+        {
+            successfulResponse.Dispose();
+            // 内容读取结束后再取消其余竞速请求，避免取消获胜响应的内容流。
+            await cts.CancelAsync();
+            try
+            {
+                await Task.WhenAll(sourceTasks);
+            }
+            catch (Exception) when (token.IsCancellationRequested || cts.IsCancellationRequested)
+            {
+                // 竞速中的其他源被取消是正常收尾，不应覆盖用户取消状态。
+            }
+        }
     }
     private async Task ReadResponseAndWriteToFileAsync(
         HttpResponseMessage response,
@@ -110,9 +153,33 @@ public class RaceDownloader
         CancellationToken cancelToken)
     {
         // 不包含SHA1校验
-        using var contentStream = await response.Content.ReadAsStreamAsync();
-        Directory.CreateDirectory(Path.GetDirectoryName(main.path)!);
-        using (var fileStream = new FileStream(main.path, FileMode.Create, FileAccess.Write, FileShare.None,8192,true))
-            await contentStream.CopyToAsync(fileStream, cancelToken);
+        string temporaryPath = $"{main.path}.downloading";
+        try
+        {
+            using var contentStream = await response.Content.ReadAsStreamAsync();
+            Directory.CreateDirectory(Path.GetDirectoryName(main.path)!);
+            using (var fileStream = new FileStream(temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None,8192,true))
+                await contentStream.CopyToAsync(fileStream, cancelToken);
+
+            File.Move(temporaryPath, main.path, true);
+        }
+        catch
+        {
+            try
+            {
+                if (File.Exists(temporaryPath))
+                    File.Delete(temporaryPath);
+            }
+            catch (IOException)
+            {
+                // 清理失败不能覆盖原始下载异常。
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // 清理失败不能覆盖原始下载异常。
+            }
+
+            throw;
+        }
     }
 }

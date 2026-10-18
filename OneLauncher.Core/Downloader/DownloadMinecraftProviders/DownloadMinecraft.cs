@@ -65,9 +65,14 @@ public partial class DownloadMinecraft
         alls = plan.AllFilesGoVerify.Count;
         progress?.Report((DownProgress.Meta, alls, dones, "下载计划生成完毕，开始下载..."));
 
+        if (cancelToken.IsCancellationRequested)
+            return;
+
         // 4. 执行核心下载任务
 
         await DownloadClientTasker(plan.ClientMainFile);
+        if (cancelToken.IsCancellationRequested)
+            return;
         // 模组加载器的下载和安装是后台任务
         Task modInstallTasker = 
             plan.ModProviders != null && info.UserInfo.ModLoader != ModEnum.none 
@@ -75,15 +80,25 @@ public partial class DownloadMinecraft
             : Task.CompletedTask;
         
         await DownloadLibrariesSupportTasker(plan.LibraryFiles);
+        if (cancelToken.IsCancellationRequested)
+            return;
         await DownloadAssetsSupportTasker(plan.AssetFiles);
+        if (cancelToken.IsCancellationRequested)
+            return;
 
 
         if (plan.LoggingFile.HasValue)
             await LogginInstallTasker(plan.LoggingFile.Value);
 
+        if (cancelToken.IsCancellationRequested)
+            return;
+
         // 5. 等待后台任务完成
         await modInstallTasker;
         await javaInstallTask;
+
+        if (cancelToken.IsCancellationRequested)
+            return;
 
         // 6. (可选)校验所有文件
         if (info.IsSha1)

@@ -115,13 +115,13 @@ public class UserModel
             {
                 return this;
             }
-
             // 令牌已过期，需要刷新。检查能否刷新。
             if (authenticator == null || string.IsNullOrEmpty(AccountID))
             {
                 // 缺少刷新所需的工具或信息，返回自身。
                 return this;
             }
+            var task = UnitedCore._TaskManager.CreateTask($"刷新 {this.Name} 账户令牌");
             if (UserType == AccountType.Msa)
             {
                 // 从认证器缓存中找到对应的微软账户
@@ -132,8 +132,17 @@ public class UserModel
                 }
 
                 // 调用认证器执行刷新流程
-                UserModel r = await authenticator.TryToGetMinecraftMojangAccessTokenForLoginedAccounts(accountToRefresh) ?? this;
+                UserModel? r = await authenticator.TryToGetMinecraftMojangAccessTokenForLoginedAccounts(accountToRefresh);
 
+                if(r == null)
+                {
+                    r = this;
+                    task.SetFailed(new OlanException("刷新失败，返回当前实例。","失败",OlanExceptionAction.Warning));
+                }
+                else
+                {
+                    task.SetDone();
+                }
                 // 如果刷新成功，返回那个全新的 UserModel并更改自身；如果失败（返回null），则返回当前的（已过期的）实例。
                 AccessToken = r.AccessToken;
                 AccessTokenExpiration = r.AccessTokenExpiration;

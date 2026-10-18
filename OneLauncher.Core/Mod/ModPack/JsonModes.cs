@@ -27,7 +27,7 @@ namespace OneLauncher.Core.Mod.ModPack.JsonModels
         public Dictionary<string, string> Dependencies { get; set; }
 
         [JsonPropertyName("files")]
-        public List<ModrinthFile> Files { get; set; }
+        public List<ModrinthFile>? Files { get; set; }
     }
 
     public class ModrinthFile

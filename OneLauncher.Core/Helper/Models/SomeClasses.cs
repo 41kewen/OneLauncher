@@ -90,6 +90,7 @@ public struct NdDowItem
     {
         url = Url;
         path = Path;
+        size = Size;
         if (Sha1 != null)
             sha1 = Sha1;
     }

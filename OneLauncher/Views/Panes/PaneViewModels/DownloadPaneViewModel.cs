@@ -59,7 +59,7 @@ internal partial class DownloadPaneViewModel : BaseViewModel
         cts?.Dispose();
     }
     private CancellationTokenSource cts;
-    private TaskInstance task;
+    private TaskInstance? task;
     #region 数据绑定区
     [ObservableProperty] public bool _IsQuilt;
     [ObservableProperty] public bool _IsDownloadQuiltWithQSL = true;
@@ -154,6 +154,12 @@ internal partial class DownloadPaneViewModel : BaseViewModel
                         progressReporter,
                         cts.Token
                     ).MinecraftBasic();
+
+                    if (cts.IsCancellationRequested)
+                    {
+                        task.Cancel();
+                        return;
+                    }
                 }
                 UserVersion? mayInstalledVersion = _configManager.Data.VersionList.FirstOrDefault(x => x.VersionID == VersionName);
                 if (mayInstalledVersion == null)
@@ -174,7 +180,7 @@ internal partial class DownloadPaneViewModel : BaseViewModel
             }
             catch (OperationCanceledException)
             {
-                task.Cancel();
+                task?.Cancel();
                 Debug.WriteLine("下载任务被用户取消");
             }
             catch (OlanException ex)
@@ -196,8 +202,8 @@ internal partial class DownloadPaneViewModel : BaseViewModel
     [RelayCommand]
     public void ToCancellationDownloadTask()
     {
-        task.Cancel();
-        cts.Cancel();
+        // TaskInstance 持有同一个 CancellationTokenSource；通过它取消即可，避免重复触发取消回调。
+        task?.Cancel();
     }
     [RelayCommand]
     public void ClosePane()

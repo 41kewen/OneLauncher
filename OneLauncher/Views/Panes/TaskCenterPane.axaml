@@ -1,0 +1,113 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:OneLauncher.Views.Panes.PaneViewModels"
+             xmlns:controls="using:OneLauncher.Views.Controls"
+             mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="620"
+             x:DataType="vm:TaskCenterPaneViewModel"
+             x:CompileBindings="True"
+             x:Class="OneLauncher.Views.Panes.TaskCenterPane">
+    <Grid RowDefinitions="Auto,Auto,*" Margin="20">
+        <controls:PaneHeader Grid.Row="0" Title="任务中心" BackCommand="{Binding ClosePaneCommand}"/>
+        <Separator Grid.Row="1" Classes="pane-divider"/>
+
+        <Grid Grid.Row="2">
+            <Border Classes="pane-status task-empty"
+                    IsVisible="{Binding !HasTasks}">
+                <StackPanel Spacing="6" HorizontalAlignment="Center">
+                    <TextBlock Classes="pane-section-title"
+                               Text="暂无任务"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Classes="pane-help"
+                               Text="下载或安装任务会显示在这里"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <ScrollViewer IsVisible="{Binding HasTasks}">
+                <ItemsControl Classes="task-list" ItemsSource="{Binding Tasks}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:TaskInstanceItemViewModel">
+                            <Border Classes="pane-surface task-card">
+                                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto"
+                                      ColumnSpacing="12" RowSpacing="10">
+                                    <Border Classes="task-status-icon">
+                                        <Grid>
+                                            <PathIcon Classes="task-icon running"
+                                                       Data="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6a6 6 0 0 1-6 6 6 6 0 0 1-5.65-4H4.26A8.01 8.01 0 0 0 12 21a8 8 0 0 0 8-8c0-4.42-3.58-8-8-8z"
+                                                       Foreground="{Binding ProgressBrush}"
+                                                       IsVisible="{Binding IsRunning}"/>
+                                            <PathIcon Classes="task-icon canceled"
+                                                       Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"
+                                                       Foreground="{Binding ProgressBrush}"
+                                                       IsVisible="{Binding IsCanceled}"/>
+                                            <PathIcon Classes="task-icon failed"
+                                                       Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"
+                                                       Foreground="{Binding ProgressBrush}"
+                                                       IsVisible="{Binding IsFailed}"/>
+                                            <PathIcon Classes="task-icon finished"
+                                                       Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                                                       Foreground="{Binding ProgressBrush}"
+                                                       IsVisible="{Binding IsFinished}"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <TextBlock Classes="item-title"
+                                                   Text="{Binding Name}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <Border Classes="status-badge" IsVisible="{Binding IsRunning}">
+                                                <TextBlock Text="运行中"/>
+                                            </Border>
+                                            <Border Classes="status-badge warning" IsVisible="{Binding IsCanceled}">
+                                                <TextBlock Text="已取消"/>
+                                            </Border>
+                                            <Border Classes="status-badge danger" IsVisible="{Binding IsFailed}">
+                                                <TextBlock Text="异常"/>
+                                            </Border>
+                                            <Border Classes="status-badge success" IsVisible="{Binding IsFinished}">
+                                                <TextBlock Text="已完成"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <Button Grid.Column="2"
+                                            Classes="pane-danger task-cancel"
+                                            Content="取消"
+                                            Command="{Binding CancelTaskCommand}"
+                                            IsVisible="{Binding CanCancel}"/>
+
+                                    <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                        <TextBlock Classes="task-status-label"
+                                                   Text="当前进度"
+                                                   VerticalAlignment="Center"/>
+                                        <SelectableTextBlock Grid.Column="1"
+                                                             Classes="task-current"
+                                                             Text="{Binding CurrentText}"
+                                                             TextWrapping="Wrap"
+                                                             VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <Border Grid.Row="2" Grid.ColumnSpan="3"
+                                            Classes="task-progress-surface"
+                                            Background="{Binding ProgressSurfaceBrush}"
+                                            BorderBrush="{Binding ProgressBrush}">
+                                        <ProgressBar Classes="pane-progress task-progress"
+                                                     Minimum="0"
+                                                     Maximum="100"
+                                                     Value="{Binding Progress}"
+                                                     Foreground="{Binding ProgressBrush}"
+                                                     ShowProgressText="True"/>
+                                    </Border>
+
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

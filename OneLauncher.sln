@@ -16,6 +16,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneLauncher.Console", "OneLauncher.Console\OneLauncher.Console.csproj", "{E001372A-C897-44BE-AF66-BAD9362CCFE4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{EE15132C-A9C8-4305-8EFA-72F6170382A5}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "A", "A", "{C8312AFE-7DAC-4F17-BDCA-60619B0E7FA9}"
 	ProjectSection(SolutionItems) = preProject

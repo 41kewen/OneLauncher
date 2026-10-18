@@ -64,21 +64,17 @@ public class MrpackParser
     /// </summary>
     /// <param name="modsPath">要将Mod下载到的目标目录 (例如 .../instance/xxxx/mods)。</param>
     /// <returns>一个包含所有Mod下载信息的列表。</returns>
-    public List<NdDowItem> GetModFiles(string modsPath)
+    public List<NdDowItem> GetModFiles(string instancePath)
     {
-        var items = new List<NdDowItem>(_manifest.Files.Count);
+        var files = _manifest.Files;
+        var items = new List<NdDowItem>(files?.Count ?? 0);
 
-        foreach (var file in _manifest.Files)
+        foreach (var file in files ?? Enumerable.Empty<ModrinthFile>())
         {
-            // 有些整合包文件路径可能包含 "overrides" 文件夹，我们需要过滤掉这些，只处理mods
-            if (file.Path.StartsWith("overrides"))
-            {
+            string relativePath = file.Path.Replace('/', Path.DirectorySeparatorChar);
+            string finalPath = Path.Combine(instancePath, relativePath);
+            if (!Path.GetFullPath(finalPath).StartsWith(Path.GetFullPath(instancePath) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 continue;
-            }
-
-            // 使用 Path.Combine 来处理不同操作系统的路径分隔符
-            // file.Path 已经是相对路径，如 "mods/fabric-api-0.91.0.jar"
-            string finalPath = Path.Combine(modsPath, Path.GetFileName(file.Path));
 
             items.Add(new NdDowItem(
                 Url: file.Downloads.FirstOrDefault(),

@@ -80,6 +80,7 @@ public partial class MainWindow : Window
             servises.AddSingleton<DownloadPaneViewModelFactory>();
             servises.AddSingleton<EditGameDataPaneViewModelFactory>();
             servises.AddSingleton<PowerPlayPaneViewModelFactory>();
+            servises.AddSingleton<TaskCenterPaneViewModelFactory>();
             servises.AddSingleton<InstallModPaneViewModelFactory>();
             servises.AddSingleton<UserModelLoginPaneViewModelFactory>();
 

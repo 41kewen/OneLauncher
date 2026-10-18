@@ -32,8 +32,11 @@ internal partial class HomePageViewModel : BaseViewModel
 {
     private readonly GameDataManager _gameDataManager;
     private readonly DBManager _configManager;
+    private readonly UnitedCore _unitedCore;
     private readonly PowerPlayPaneViewModelFactory _mctVMFactory;
+    private readonly TaskCenterPaneViewModelFactory _taskCenterVMFactory;
     private readonly INewReader _newsReader;
+    private TaskCenterPaneViewModel? _taskCenterPane;
 
     [ObservableProperty] private List<GameData> launchItems;
     [ObservableProperty] private GameData? selectedGameData = null;
@@ -47,12 +50,16 @@ internal partial class HomePageViewModel : BaseViewModel
     public HomePageViewModel(
         GameDataManager gameDataManager,
         DBManager configManager,
-        PowerPlayPaneViewModelFactory powerPlayPaneViewModelFactory
+        UnitedCore unitedCore,
+        PowerPlayPaneViewModelFactory powerPlayPaneViewModelFactory,
+        TaskCenterPaneViewModelFactory taskCenterPaneViewModelFactory
         )
     {
         this._configManager = configManager;
         this._gameDataManager = gameDataManager;
+        this._unitedCore = unitedCore;
         this._mctVMFactory = powerPlayPaneViewModelFactory;
+        this._taskCenterVMFactory = taskCenterPaneViewModelFactory;
         LaunchItems = _gameDataManager.AllGameData;
         _gameDataManager.OnDataChanged += () =>
         {
@@ -92,6 +99,13 @@ internal partial class HomePageViewModel : BaseViewModel
     partial void OnSelectedGameDataChanged(GameData? value)
     {
         GameIcon = GameDataItem.GetGameDataIcon(value);
+    }
+    [RelayCommand]
+    private void OpenTaskCenter()
+    {
+        _taskCenterPane ??= _taskCenterVMFactory.Create(() => IsPaneShow = false);
+        PaneContent = new TaskCenterPane { DataContext = _taskCenterPane };
+        IsPaneShow = true;
     }
     [RelayCommand]
     public void Launch()
@@ -220,16 +234,20 @@ internal partial class HomePageViewModel : BaseViewModel
                 return;
 
             string filePath = selectedFile.Path.LocalPath;
-            WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("正在导入。。。（这可能需要较长时间）"));
+            WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("正在导入。。。（请打开任务中心查看进度）"));
+            var task = _unitedCore.TaskManager.CreateTask("整合包导入");
             await ModpackImporter.ImportFromMrpackAsync(filePath,
                 Init.GameRootPath,
                 new Progress<(DownProgress a, int b, int c, string d)>
                 (p =>
                 {
+                    double progressPercentage = (p.b == 0) ? 0 : (double)p.c / p.b * 100;
+                    task.SetProgress($"当前文件：{p.d}",progressPercentage);
                     Debug.WriteLine($"导入进度：{p.a}, 总文件数：{p.b}, 已下载文件数：{p.c}, 当前文件：{p.d}");
                 })
-                , CancellationToken.None);
+                , task!.Token!.Token);
             WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("导入完成！"));
+            task.SetDone();
         }
     }
     #endregion

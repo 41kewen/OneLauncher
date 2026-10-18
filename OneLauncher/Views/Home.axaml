@@ -117,6 +117,32 @@
 								</ListBoxItem>
 
 								<ListBoxItem>
+									<Border Width="385" MinHeight="120" Background="{DynamicResource CardBackgroundBrush}"
+											CornerRadius="12" ClipToBounds="True">
+										<Grid ColumnDefinitions="5, *, Auto">
+											<Border Grid.Column="0" Background="{DynamicResource SuccessBrush}"/>
+
+											<StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="20,0">
+												<TextBlock Text="任务中心" FontSize="22" FontWeight="SemiBold"
+														Foreground="{DynamicResource PrimaryForegroundBrush}"/>
+												<TextBlock Text="查看下载任务和实时进度" FontSize="12"
+														Foreground="{DynamicResource SecondaryForegroundBrush}"/>
+											</StackPanel>
+
+											<Button Grid.Column="2" Content="进入"
+													Command="{Binding OpenTaskCenterCommand}"
+													Background="{DynamicResource SuccessBrush}"
+													Foreground="White"
+													VerticalAlignment="Center"
+													HorizontalAlignment="Right"
+													Margin="0,0,20,0"
+													Padding="25,8"
+													CornerRadius="8"/>
+										</Grid>
+									</Border>
+								</ListBoxItem>
+
+								<ListBoxItem>
 									<Border Width="385" Height="120" Background="{DynamicResource CardBackgroundBrush}"
 											CornerRadius="12" ClipToBounds="True">
 
