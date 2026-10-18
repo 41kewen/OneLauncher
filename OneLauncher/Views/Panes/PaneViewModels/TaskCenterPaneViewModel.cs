@@ -134,18 +134,12 @@ internal sealed partial class TaskInstanceItemViewModel : ObservableObject
         RefreshStatus();
     }
 
-    private void OnProgressChanged(double progress)
+    private void OnProgressChanged(double _)
     {
-        void UpdateProgress()
-        {
-            Progress = Math.Clamp(progress, 0, 100);
-            RefreshStatus();
-        }
-
         if (Dispatcher.UIThread.CheckAccess())
-            UpdateProgress();
+            RefreshStatus();
         else
-            Dispatcher.UIThread.Post(UpdateProgress);
+            Dispatcher.UIThread.Post(RefreshStatus);
     }
 
     private void OnFinished() => RefreshStatusFromEvent();
@@ -174,6 +168,7 @@ internal sealed partial class TaskInstanceItemViewModel : ObservableObject
         StatusText = status;
         CurrentText = _task.Exception?.Message
             ?? (string.IsNullOrWhiteSpace(_task.Current) ? "等待任务进度..." : _task.Current);
+        Progress = Math.Clamp(_task.Progress, 0, 100);
         ProgressBrush = _task.Status switch
         {
             TaskInfoStatus.Canceled => CanceledBrush,

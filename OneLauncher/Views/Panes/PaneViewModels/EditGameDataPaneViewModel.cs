@@ -11,6 +11,7 @@ using OneLauncher.Core.Global;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper;
 using OneLauncher.Core.Helper.Models;
+using OneLauncher.Core.Mod.ModPack.ModOutpoter;
 using OneLauncher.Views.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -154,7 +155,32 @@ internal partial class EditGameDataPaneViewModel : BaseViewModel
     [RelayCommand]
     private async Task ZipThisInstance()
     {
+        WeakReferenceMessenger.Default.Send(
+            new MainWindowShowFlyoutMessage("正在将实例打包为整合包，请稍候..."));
 
+        try
+        {
+            string outputPath = await ModpackExporter.ExportAsync(editingGameData);
+            WeakReferenceMessenger.Default.Send(
+                new MainWindowShowFlyoutMessage(
+                    $"整合包已完成，文件已存放在实例根目录：{outputPath}",
+                    NotificationType.Success));
+        }
+        catch (OperationCanceledException)
+        {
+            WeakReferenceMessenger.Default.Send(
+                new MainWindowShowFlyoutMessage("整合包导出已取消。", NotificationType.Warning));
+        }
+        catch (OlanException exception)
+        {
+            WeakReferenceMessenger.Default.Send(
+                new MainWindowShowFlyoutMessage(exception.Message, NotificationType.Error, exception.Title));
+        }
+        catch (Exception exception)
+        {
+            WeakReferenceMessenger.Default.Send(
+                new MainWindowShowFlyoutMessage($"整合包导出失败：{exception.Message}", NotificationType.Error));
+        }
     }
     #endregion
     #region 基本选项

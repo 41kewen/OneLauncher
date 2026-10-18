@@ -21,6 +21,7 @@ public class TaskInstance
     public TaskInfoStatus Status { get; private set; }
     public CancellationTokenSource? Token { get; private set; }
     public Exception? Exception { get; set; }
+    public double Progress { get; private set; } = 0;
     public event Action<double>? ProgressChanged;
     public event Action Finished;
     public event Action Failed;
@@ -28,6 +29,7 @@ public class TaskInstance
     public void SetProgress(string current, double progress)
     {
         Current = current;
+        Progress = progress;
         ProgressChanged?.Invoke(progress);
     }
     public void SetFailed(Exception exception)

@@ -56,7 +56,8 @@ public class MrpackParser
         if (unsupportedLoader != null)
             throw new OlanException("加载器不兼容", $"该整合包需要 '{unsupportedLoader}' 加载器，当前启动器暂不支持。", OlanExceptionAction.Error);
 
-        throw new OlanException("加载器不兼容", "未在整合包中找到受支持的加载器。", OlanExceptionAction.Error);
+        // 没有 loader 依赖时表示原版实例。
+        return (ModEnum.none, string.Empty);
     }
 
     /// <summary>

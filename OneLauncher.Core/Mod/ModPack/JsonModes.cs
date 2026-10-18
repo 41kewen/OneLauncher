@@ -27,6 +27,7 @@ namespace OneLauncher.Core.Mod.ModPack.JsonModels
         public Dictionary<string, string> Dependencies { get; set; }
 
         [JsonPropertyName("files")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<ModrinthFile>? Files { get; set; }
     }
 
