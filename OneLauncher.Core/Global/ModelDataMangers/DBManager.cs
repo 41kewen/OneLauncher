@@ -20,7 +20,7 @@ public partial class OneLauncherAppConfigsJsonContext : JsonSerializerContext { 
 public class DefaultConfig
 {
     public JvmArguments MinecraftJvmArguments { get; set; } = JvmArguments.CreateFromMode();
-    public string CrafatarUrl { get; set; } = "http://119.36.194.123:18792/renders/body/";
+    public string CrafatarUrl { get; set; } = "http://106.55.4.15:18792/renders/body/";
     public string? ApiKey { get; set; } = null;
     public List<string> RecommandedModsForServer { get; set; } = new List<string>();
     public List<string> RecommandedModsForSurvival { get; set; } = new List<string>();

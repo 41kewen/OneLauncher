@@ -21,13 +21,15 @@ namespace OneLauncher.Views.ViewModels;
 internal partial class DownloadPageViewModel : BaseViewModel
 {
     private readonly DownloadPaneViewModelFactory _viewFactory;
+    private readonly UnitedCore _unitedCore;
     // 这里要异步初始化的
     private async Task VersionManifestReader()
     {
         try
         {
             var versionInfos =
-                await VersionsList.GetOrRefreshVersionListAsync();
+                //await VersionsList.GetOrRefreshVersionListAsync();
+                _unitedCore.MojangVersionList;
             Dispatcher.UIThread.Post(() =>
             {
                 ReleaseItems = new ObservableCollection<VersionBasicInfo>(versionInfos); // 安全地创建集合
@@ -39,9 +41,10 @@ internal partial class DownloadPageViewModel : BaseViewModel
             await OlanExceptionWorker.ForOlanException(e,() => _=VersionManifestReader());
         }
     }
-    public DownloadPageViewModel(DownloadPaneViewModelFactory viewFactory)
+    public DownloadPageViewModel(DownloadPaneViewModelFactory viewFactory, UnitedCore unitedCore)
     {
         this._viewFactory = viewFactory;
+        this._unitedCore = unitedCore;
         _=VersionManifestReader();
     }
     [ObservableProperty] private bool isLoaded = false;

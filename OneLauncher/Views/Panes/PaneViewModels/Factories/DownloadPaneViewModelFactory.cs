@@ -1,4 +1,5 @@
-﻿using OneLauncher.Core.Global.ModelDataMangers;
+﻿using OneLauncher.Core.Global;
+using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper.Models;
 using System;
 using System.Collections.Generic;
@@ -12,18 +13,22 @@ internal class DownloadPaneViewModelFactory
 {
     private readonly DBManager _dbManager;
     private readonly GameDataManager _gameDataManager;
+    private readonly UnitedCore _unitedCore;
 
     public DownloadPaneViewModelFactory(
         
         DBManager dbManager,
-        GameDataManager gameDataManager)
+        GameDataManager gameDataManager,
+        UnitedCore unitedCore
+        )
     {
         _dbManager = dbManager;
         _gameDataManager = gameDataManager;
+        _unitedCore = unitedCore;
     }
 
     public DownloadPaneViewModel Create(VersionBasicInfo version,Action onCloseCallback)
     {
-        return new DownloadPaneViewModel(version, _dbManager,_gameDataManager,onCloseCallback);
+        return new DownloadPaneViewModel(version, _dbManager,_gameDataManager,_unitedCore,onCloseCallback);
     }
 }

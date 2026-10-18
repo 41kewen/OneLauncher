@@ -1,0 +1,33 @@
+<Project>
+  <!--
+    Platform constants must describe the target RID, not the OS running MSBuild.
+    This is important for cross-publishing linux-x64/osx-* packages from Windows.
+  -->
+  <!-- Platform-specific #if branches make the class libraries RID-sensitive.
+       Tell the SDK to keep RuntimeIdentifier across project references. -->
+  <PropertyGroup>
+    <IsRidAgnostic>false</IsRidAgnostic>
+  </PropertyGroup>
+
+  <!-- RuntimeIdentifier from a publish profile is not a global MSBuild property.
+       Add it to resolved project references so nested libraries use the same RID. -->
+  <Target Name="PropagateRuntimeIdentifierToProjectReferences"
+          AfterTargets="_GetProjectReferenceTargetFrameworkProperties"
+          Condition="'$(RuntimeIdentifier)' != ''">
+    <ItemGroup>
+      <_MSBuildProjectReferenceExistent>
+        <SetTargetFramework>%(_MSBuildProjectReferenceExistent.SetTargetFramework);RuntimeIdentifier=$(RuntimeIdentifier)</SetTargetFramework>
+      </_MSBuildProjectReferenceExistent>
+    </ItemGroup>
+  </Target>
+
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != '' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">
+    <DefineConstants>$([System.String]::Copy('$(DefineConstants)').Replace(';WINDOWS', '').Replace(';LINUX', '').Replace(';MACOS', ''));WINDOWS</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != '' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))">
+    <DefineConstants>$([System.String]::Copy('$(DefineConstants)').Replace(';WINDOWS', '').Replace(';LINUX', '').Replace(';MACOS', ''));LINUX</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != '' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))">
+    <DefineConstants>$([System.String]::Copy('$(DefineConstants)').Replace(';WINDOWS', '').Replace(';LINUX', '').Replace(';MACOS', ''));MACOS</DefineConstants>
+  </PropertyGroup>
+</Project>

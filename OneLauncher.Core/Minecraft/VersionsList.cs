@@ -11,8 +11,6 @@ namespace OneLauncher.Core.Minecraft;
 public class VersionsList
 {
     internal const string VersionListUrl = "https://piston-meta.mojang.com/mc/game/version_manifest.json";
-
-    // 构造函数可以保持私有或删除，因为我们将使用静态方法
     private VersionsList() { }
 
     public static async Task<IEnumerable<VersionBasicInfo>> GetOrRefreshVersionListAsync()
@@ -42,7 +40,7 @@ public class VersionsList
 
         // 调用筛选方法，并更新全局的静态列表
         var releaseVersions = GetReleaseVersionList(fullManifest);
-        Init.MojangVersionList = releaseVersions.ToList();
+        //Init.MojangVersionList = releaseVersions.ToList();
 
         return releaseVersions;
     }

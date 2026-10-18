@@ -9,6 +9,9 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace OneLauncher.Core.Global;
+/// <summary>
+/// 此代码耦合过于严重，现职责已迁移到UnitedCore中，该类仅用于还没来得及重写的大量原始代码使用
+/// </summary>
 public static partial class Init
 {
     public const string ApplicationID = "53740b20-7f24-46a3-82cc-ea0376b9f5b5";
@@ -25,7 +28,7 @@ public static partial class Init
 #endif
     public static string InstalledPath { get; private set; }
     public static SystemType SystemType { get; private set; }
-    public static List<VersionBasicInfo> MojangVersionList = null;
+    //public static List<VersionBasicInfo> MojangVersionList { get; set; } = null;
     public static List<IDisposable> OnApplicationClosingReleaseSourcesList = new();
     // 必要的时候还是得耦合一下的，啥都得传递那他妈的写起来太难受了
     public static DBManager ConfigManger => ConfigManager;
@@ -82,6 +85,8 @@ public static partial class Init
             var javaManager = new JavaManager();
             services.AddSingleton<JavaManager>(javaManager);
             JavaManager = javaManager;
+
+            services.AddSingleton<UnitedCore>(await UnitedCore.Initialize());
 
             return services; 
         }

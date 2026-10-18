@@ -42,6 +42,21 @@ public class JavaManager
             };
             return Tools.ReplacePlaceholders(path, placeholders).Replace('/', Path.DirectorySeparatorChar);
         }
+
+        // Recover installations created before the Java path was persisted, or
+        // after a configuration reset. This is deliberately runtime-based so it
+        // works for both Windows and Unix targets without another platform macro.
+        string runtimeRoot = Path.Combine(Init.InstalledPath, "runtimes", version.ToString());
+        if (Directory.Exists(runtimeRoot))
+        {
+            string executableName = OperatingSystem.IsWindows() ? "java.exe" : "java";
+            string? managedJava = Directory.EnumerateDirectories(runtimeRoot)
+                .Select(directory => Path.Combine(directory, "bin", executableName))
+                .FirstOrDefault(File.Exists);
+            if (managedJava != null)
+                return managedJava;
+        }
+
         return "java";
     }
 

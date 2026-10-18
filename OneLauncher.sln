@@ -16,9 +16,15 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneLauncher.Console", "OneLauncher.Console\OneLauncher.Console.csproj", "{E001372A-C897-44BE-AF66-BAD9362CCFE4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{EE15132C-A9C8-4305-8EFA-72F6170382A5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "A", "A", "{C8312AFE-7DAC-4F17-BDCA-60619B0E7FA9}"
+	ProjectSection(SolutionItems) = preProject
+		Welcome.md = Welcome.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "B", "B", "{4DAE2DCA-78C2-4B62-A5B7-12D7B2EF722C}"
 	ProjectSection(SolutionItems) = preProject
 		docs\UI_FI.md = docs\UI_FI.md
-		Welcome.md = Welcome.md
 	EndProjectSection
 EndProject
 Global
@@ -138,6 +144,10 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C8312AFE-7DAC-4F17-BDCA-60619B0E7FA9} = {EE15132C-A9C8-4305-8EFA-72F6170382A5}
+		{4DAE2DCA-78C2-4B62-A5B7-12D7B2EF722C} = {EE15132C-A9C8-4305-8EFA-72F6170382A5}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {84522990-1C5A-4180-9BDD-BDF56ACC2605}

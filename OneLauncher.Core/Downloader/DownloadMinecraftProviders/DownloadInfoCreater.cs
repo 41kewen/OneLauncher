@@ -55,7 +55,7 @@ public partial class DownloadInfo
         // 确定下载信息
         VersionBasicInfo versionDownloadInfo =
             versionBasic ??
-            Init.MojangVersionList.FirstOrDefault(x => x.ID == versionId)
+            UnitedCore._MojangVersionList.FirstOrDefault(x => x.ID == versionId)
             ?? throw new OlanException("内部错误", "无法搜索到你需要下载版本的下载信息");
 
         // 确定版本信息

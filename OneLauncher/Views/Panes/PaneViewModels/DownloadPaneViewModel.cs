@@ -23,6 +23,7 @@ internal partial class DownloadPaneViewModel : BaseViewModel
 {
     private readonly DBManager _configManager;
     private readonly GameDataManager _gameDataManager;
+    private readonly UnitedCore _unitedCore;
     private readonly Action _onCloseCallback;
 #if DEBUG
     // 供设计器预览
@@ -33,10 +34,16 @@ internal partial class DownloadPaneViewModel : BaseViewModel
         IsAllowFabric = true;
     }
 #endif
-    public DownloadPaneViewModel(VersionBasicInfo Version,DBManager dBManager,GameDataManager gameDataManager,Action onCloseCallback)
+    public DownloadPaneViewModel(
+        VersionBasicInfo Version,
+        DBManager dBManager,
+        GameDataManager gameDataManager,
+        UnitedCore unitedCore,
+        Action onCloseCallback)
     {
         this._configManager = dBManager;
         this._gameDataManager = gameDataManager;
+        this._unitedCore = unitedCore;
         this._onCloseCallback = onCloseCallback;
         VersionName = Version.ID.ToString();
         thisVersionBasicInfo = Version;
@@ -52,6 +59,7 @@ internal partial class DownloadPaneViewModel : BaseViewModel
         cts?.Dispose();
     }
     private CancellationTokenSource cts;
+    private TaskInstance task;
     #region 数据绑定区
     [ObservableProperty] public bool _IsQuilt;
     [ObservableProperty] public bool _IsDownloadQuiltWithQSL = true;
@@ -91,8 +99,8 @@ internal partial class DownloadPaneViewModel : BaseViewModel
         return Task.Run(async () =>
         {
             DownloadInfo content;
-
-            cts = new();
+            task = _unitedCore.TaskManager.CreateTask($"下载 MC {VersionName}");
+            cts = task!.Token!;
             try
             {
                 { 
@@ -115,6 +123,9 @@ internal partial class DownloadPaneViewModel : BaseViewModel
                             {
                                 Dp = "已下载完毕";
                                 CurrentProgress = 100;
+
+                                task.SetProgress("下载完成",100);
+                                task.SetDone();
                             }
                             else if ((DateTime.UtcNow - lastUpdateTime) > _updateInterval)
                             {
@@ -129,6 +140,9 @@ internal partial class DownloadPaneViewModel : BaseViewModel
                                     DownProgress.Verify => "校验文件中..."
                                 };
                                 CurrentProgress = progressPercentage;
+
+                                task.SetProgress(Dp, progressPercentage);
+
                                 lastUpdateTime = DateTime.UtcNow;
                             }
                             Fs = $"{p.b}/{p.a}";
@@ -160,17 +174,20 @@ internal partial class DownloadPaneViewModel : BaseViewModel
             }
             catch (OperationCanceledException)
             {
+                task.Cancel();
                 Debug.WriteLine("下载任务被用户取消");
             }
             catch (OlanException ex)
             {
                 await cts.CancelAsync();
+                task.SetFailed(ex);
                 await OlanExceptionWorker.ForOlanException(ex);
             }
 #if !DEBUG
         catch (Exception ex)
         {
             await cts.CancelAsync();
+            task.SetFailed(ex);
             await OlanExceptionWorker.ForUnknowException(ex);
         }
 #endif
@@ -179,6 +196,7 @@ internal partial class DownloadPaneViewModel : BaseViewModel
     [RelayCommand]
     public void ToCancellationDownloadTask()
     {
+        task.Cancel();
         cts.Cancel();
     }
     [RelayCommand]
