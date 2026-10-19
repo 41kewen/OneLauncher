@@ -14,48 +14,40 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace OneLauncher.Core.Launcher;
-public class GameLauncher : IGameLauncher, IDisposable
+internal sealed class GameLauncher : IDisposable
 {
-    public event Action? GameStartedEvent;
     public event Action<int>? GameClosedEvent;
     public event Action<string>? GameOutputEvent;
-    public CancellationToken CancellationToken = CancellationToken.None; // 外部可以设置
-
     private Process? _gameProcess;
     private string? _accessToken;
     public string GameDirectory { get; private set; } = "";
     private readonly string gameRootPath = Init.GameRootPath;
     private readonly AccountManager accountManager = Init.AccountManager;
-    private async Task BasicLaunch(GameData gameData,ServerInfo? serverInfo = null,bool useRootMode = false)
+    internal async Task BasicLaunch(
+        GameData gameData,
+        ServerInfo? serverInfo = null,
+        bool useRootMode = false,
+        IProgress<(string Current, double Progress)>? progress = null,
+        CancellationToken cancellationToken = default)
     {
-        #region 准备工作
+        #region 配置启动参数
+        GameDirectory = useRootMode ? gameRootPath : gameData.InstancePath;
         if (gameData.HasImportedLaunchManifest && gameData.ModLoader == ModEnum.forge)
             ForgeRuntimeLayout.ValidateImportedFiles(gameRootPath, gameData.VersionId, gameData.ModLoaderVersion);
         // 先把令牌刷新了
+        progress?.Report(("正在刷新登录账户...", 25));
+        cancellationToken.ThrowIfCancellationRequested();
         UserModel user = Init.AccountManager.GetUser(gameData.DefaultUserModelID) ?? Init.AccountManager.GetDefaultUser();
-        GameDirectory = useRootMode ? gameRootPath : gameData.InstancePath;
         Task resh =
             user.IntelligentLogin(Init.MsalAuthenticator);
-        #region 外置登入补丁
-        var libPath = Path.Combine(Init.InstalledPath, "authlib.jar");
-        if(!File.Exists(libPath))
-            // 如果不存在authlib.jar，则尝试下载
-            await Init.Download
-                .DownloadFile(
-                "https://authlib-injector.yushi.moe/artifact/53/authlib-injector-1.2.5.jar",
-                libPath
-                );
-        
-        #endregion
-        // 帮用户设置一下语言
-        var optionsPath = Path.Combine(GameDirectory, "options.txt");
-        if (!File.Exists(optionsPath))
-            await File.WriteAllTextAsync(optionsPath, "lang:zh_CN");
+        progress?.Report(("正在读取游戏版本信息...", 35));
         LaunchCommandBuilder commandBuilder = (await LaunchCommandBuilder.CreateAsync(
                 gameRootPath,
                 gameData.VersionId,
                 gameData.HasImportedLaunchManifest ? Path.Combine(gameData.InstancePath, "launch.json") : null
             ));
+        cancellationToken.ThrowIfCancellationRequested();
+        progress?.Report(("正在配置游戏目录和启动参数...", 45));
         commandBuilder
             .SetLoginUser(accountManager.GetUser(gameData.DefaultUserModelID) ?? throw new OlanException("启动失败","找不到你想要启动的用户"))
             .WithServerInfo(serverInfo)
@@ -71,15 +63,19 @@ public class GameLauncher : IGameLauncher, IDisposable
         commandBuilder.WithExtraJvmArgs(ojr);
         if(gameData.CustomGameArguments != null)
             commandBuilder.WithExtraGameArgs([gameData.CustomGameArguments]);
-        await resh;
+        progress?.Report(("正在等待账户登录完成...", 55));
+        await resh.WaitAsync(cancellationToken);
         _accessToken = user.AccessToken;
         #endregion
         // 配置并启动游戏进程
         try
         {
             
+            progress?.Report(("正在解析并检查游戏依赖库...", 65));
             using (var launchCommand = await commandBuilder.BuildCommand())
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                progress?.Report(("正在生成最终启动命令...", 75));
                 string finalCommand = await launchCommand.GetArguments();
                 var processInfo = new ProcessStartInfo
                 {
@@ -94,41 +90,31 @@ public class GameLauncher : IGameLauncher, IDisposable
                     Arguments = finalCommand
                 };
                 await File.WriteAllTextAsync(Path.Combine(Init.BasePath, "LastLaunchArgs.bat"),
-                    LaunchDiagnostics.Redact(finalCommand, _accessToken));
+                    LaunchDiagnostics.Redact(finalCommand, _accessToken), cancellationToken);
                 _gameProcess = new Process();
                 _gameProcess.StartInfo = processInfo;
                 _gameProcess.OutputDataReceived += OnOutputDataReceived;
                 _gameProcess.ErrorDataReceived += OnErrorDataReceived;
-                // Java 读取 @参数文件前不能释放命令对象；文件在进程结束后清理。
-                await RunProcessAsync(_gameProcess, code => GameClosedEvent?.Invoke(code), CancellationToken);
+                progress?.Report(("正在启动 Java 游戏进程...", 85));
+                // 参数文件必须保留到 Java 退出；关闭事件等待 stdout/stderr 全部收尾。
+                await RunProcessAsync(_gameProcess, code => GameClosedEvent?.Invoke(code), cancellationToken);
             }
         }
         catch(Win32Exception)
         {
             throw new OlanException("启动失败","无法找到Java运行环境，请确保已正确安装Java并在设置中配置了Java路径",OlanExceptionAction.Error);
         }
-    }
-    public Task Play(string InstanceID)
-    {
-        GameData? gameData = Init.GameDataManager.GetInstanceFromId(InstanceID);
-        if (gameData == null)
-            throw new OlanException("启动失败",$"没有找到匹配的且已安装的实例{Environment.NewLine}请检查你的输入{InstanceID}是否正确");
-        return BasicLaunch(gameData);
-    }
-    public async Task Play(GameData gameData, ServerInfo? serverInfo = null)
-        => await BasicLaunch(gameData, serverInfo);
-    
-    public async Task Play(UserVersion userVersion, ServerInfo? serverInfo = null, bool useRootMode = false)
-    {
-        GameData finded = await Init.GameDataManager.GetOrCreateInstanceAsync(userVersion);
-        await BasicLaunch(finded, serverInfo, useRootMode);
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
     }
     public Task Stop()
     {
         if (_gameProcess != null && !_gameProcess.HasExited)
         {
             _gameProcess.Kill(true); // 强制结束进程树
-            return _gameProcess.WaitForExitAsync();
+            return _gameProcess.WaitForExitAsync(CancellationToken.None); // 调用方可以选择等待游戏进程结束
         }
         else return Task.CompletedTask;
     }
@@ -169,9 +155,6 @@ public class GameLauncher : IGameLauncher, IDisposable
         string text = LaunchDiagnostics.Redact(e.Data, _accessToken);
         Debug.WriteLine(text);
         GameOutputEvent?.Invoke($"[STDOUT] {text}{Environment.NewLine}");
-        // 咱就是，其实没有什么真正好的判断游戏已经启动的方法
-        if (e.Data.Contains("Backend library: LWJGL version"))
-            GameStartedEvent?.Invoke();
     }
     private void OnErrorDataReceived(object sender, DataReceivedEventArgs e)
     {

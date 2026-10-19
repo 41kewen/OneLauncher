@@ -59,6 +59,6 @@ public class DBManager : BasicDataManager<AppConfig>
         :base(configPath)
     {
     }
-    protected override JsonSerializerContext GetJsonContext()
-        => OneLauncherAppConfigsJsonContext.Default;
+    protected override System.Text.Json.Serialization.Metadata.JsonTypeInfo<AppConfig> CreateJsonTypeInfo(JsonSerializerOptions options)
+        => new OneLauncherAppConfigsJsonContext(options).AppConfig;
 }

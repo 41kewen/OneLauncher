@@ -24,6 +24,7 @@
             <SolidColorBrush x:Key="SecondaryForegroundBrush" Color="#FF65676D"/>
             <SolidColorBrush x:Key="MutedForegroundBrush" Color="#FF7C7F86"/>
             <SolidColorBrush x:Key="AccentBrush" Color="#FF007AFF"/>
+            <SolidColorBrush x:Key="HyperlinkHoverForegroundBrush" Color="#FF800080"/>
             <SolidColorBrush x:Key="AccentHoverBrush" Color="#14007AFF"/>
             <SolidColorBrush x:Key="AccentPressedBrush" Color="#26007AFF"/>
             <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFFFF"/>
@@ -55,6 +56,7 @@
             <SolidColorBrush x:Key="SecondaryForegroundBrush" Color="#FFB0B2B8"/>
             <SolidColorBrush x:Key="MutedForegroundBrush" Color="#FF93969D"/>
             <SolidColorBrush x:Key="AccentBrush" Color="#FF0A84FF"/>
+            <SolidColorBrush x:Key="HyperlinkHoverForegroundBrush" Color="#FFC084FC"/>
             <SolidColorBrush x:Key="AccentHoverBrush" Color="#240A84FF"/>
             <SolidColorBrush x:Key="AccentPressedBrush" Color="#380A84FF"/>
             <SolidColorBrush x:Key="OnAccentBrush" Color="#FF08111A"/>

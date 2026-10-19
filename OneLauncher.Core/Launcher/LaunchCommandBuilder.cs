@@ -33,7 +33,7 @@ public partial class LaunchCommandBuilder
         this.basePath = basePath;
         this.versionPath = Path.Combine(this.basePath, "versions", versionId);
         this.versionId = versionId;
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
         separator = ';';
 #else
     separator = ':';

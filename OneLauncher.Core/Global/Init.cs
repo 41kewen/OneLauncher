@@ -39,7 +39,7 @@ public static partial class Init
     internal static GameDataManager GameDataManager { get; private set; }
     internal static MsalAuthenticator MsalAuthenticator { get; private set; }
     internal static JavaManager JavaManager { get; private set; }
-    public static Download Download { get; private set; }
+    internal static Download Download { get; private set; }
     public static async Task<IServiceCollection> Initialize(bool isCommandMode = false)
     {
         try
@@ -86,7 +86,8 @@ public static partial class Init
             services.AddSingleton<JavaManager>(javaManager);
             JavaManager = javaManager;
 
-            services.AddSingleton<UnitedCore>(await UnitedCore.Initialize());
+            var unitedCore = await UnitedCore.Initialize();
+            services.AddSingleton<UnitedCore>(unitedCore);
 
             return services; 
         }

@@ -136,7 +136,7 @@ internal partial class UserModelLoginPaneViewModel : BaseViewModel
             if (UseWAMLogin)
                 _accountManager.FallbackToWeb();
             UserModel um;
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
             if (Init.SystemType == SystemType.windows && !useWeb)
             {
                 //throw new Exception("test");

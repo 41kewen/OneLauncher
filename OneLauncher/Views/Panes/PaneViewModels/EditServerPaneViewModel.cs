@@ -138,7 +138,7 @@ internal partial class EditServerPaneViewModel : BaseViewModel
         string shortcutPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
             $"快速加入 - {shortcutName}" +
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
             ".bat"
 #else
             ".sh"
@@ -146,7 +146,7 @@ internal partial class EditServerPaneViewModel : BaseViewModel
         );
 
         string command =
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
             $"@echo off{Environment.NewLine}\"{processPath}\" --joinServer {_editingServer.Id}{Environment.NewLine}";
 #else
             $"#!/bin/sh{Environment.NewLine}\"{processPath}\" --joinServer {_editingServer.Id}{Environment.NewLine}";

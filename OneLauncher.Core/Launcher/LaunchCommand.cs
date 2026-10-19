@@ -28,7 +28,7 @@ public sealed class LaunchCommand(IEnumerable<string> fileArgs, IEnumerable<stri
             // 引用类型保留异步方法中的文件状态，Dispose 才能清理实际使用的文件。
             tempFilePath ??= Path.GetTempFileName();
             await File.WriteAllTextAsync(tempFilePath, launchArg
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
                 .Replace("\\", @"\\") // Windows需要转义
 #endif
                 );

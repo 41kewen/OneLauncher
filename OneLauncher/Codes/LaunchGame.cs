@@ -56,27 +56,21 @@ internal class Game
             else
                 ModList = new List<string>();
         }
-
     }
-    public static async Task EasyGameLauncher(GameData gameData,ServerInfo? serverInfo,bool useDebugMode)
+    public static async Task EasyGameLauncher(UnitedCore unitedCore, GameData gameData,ServerInfo? serverInfo,bool useDebugMode)
     {
+        using var gameLauncher = unitedCore.GameLaunchService.CreateLaunchService($"启动 {gameData.Name}");
+        Action? startedHandler = null;
+        Action<int>? closedHandler = null;
+        Action<string>? outputHandler = null;
+        var recentOutput = new Queue<string>();
+        object outputLock = new();
         try
         {
             WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("正在启动游戏..."));
-            using var gameLauncher = new GameLauncher();
-            var recentOutput = new Queue<string>();
-            object outputLock = new();
-            gameLauncher.GameOutputEvent += message =>
-            {
-                lock (outputLock)
-                {
-                    recentOutput.Enqueue(message);
-                    while (recentOutput.Count > 200) recentOutput.Dequeue();
-                }
-            };
-            gameLauncher.GameStartedEvent += () =>
+            startedHandler = () =>
                 WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("游戏已启动！"));
-            gameLauncher.GameClosedEvent += (code) =>
+            closedHandler = (code) =>
             {
                 WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("游戏已关闭！"));
                 try
@@ -87,8 +81,8 @@ internal class Game
                              "游戏异常退出",
                              $"检测到游戏异常退出，代码：{code}{Environment.NewLine}建议尝试以调式模式启动或询问Agent以寻找异常原因{Environment.NewLine}点击重试以激活Agent调试",
                              OlanExceptionAction.Warning,
-                              new LaunchException(gameData, gameLauncher.GameDirectory, string.Concat(recentOutput), code),
-                             () => _ = EasyGameLauncher(gameData, serverInfo, true));
+                             new LaunchException(gameData, gameLauncher.GameDirectory, string.Concat(recentOutput), code),
+                             () => _ = EasyGameLauncher(unitedCore, gameData, serverInfo, true));
                 }
                 catch(OlanException ex)
                 {
@@ -100,12 +94,28 @@ internal class Game
             {
                 // 如果是调试模式，使用调试窗口
                 new GameTasker().Show();
-                gameLauncher.GameOutputEvent += (m)
-                    => WeakReferenceMessenger.Default.Send(new GameMessage(m));
             }
+            outputHandler = message =>
+            {
+                lock (outputLock)
+                {
+                    recentOutput.Enqueue(message);
+                    while (recentOutput.Count > 200) recentOutput.Dequeue();
+                }
+                if (useDebugMode)
+                    WeakReferenceMessenger.Default.Send(new GameMessage(message));
+            };
+            gameLauncher.GameStartedEvent += startedHandler;
+            gameLauncher.GameClosedEvent += closedHandler;
+            if (outputHandler is not null)
+                gameLauncher.GameOutputEvent += outputHandler;
             await gameLauncher.Play(gameData, serverInfo);
         }
         #region 错误处理
+        catch (OperationCanceledException)
+        {
+            WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("已取消启动游戏。"));
+        }
         catch (OlanException ex)
         {   
             await OlanExceptionWorker.ForOlanException(ex);
@@ -131,5 +141,14 @@ internal class Game
                         new OlanException("启动失败", $"系统未安装Java或系统错误{Environment.NewLine}{ex}", OlanExceptionAction.Error, ex));
         }
         #endregion
+        finally
+        {
+            if (startedHandler is not null)
+                gameLauncher.GameStartedEvent -= startedHandler;
+            if (closedHandler is not null)
+                gameLauncher.GameClosedEvent -= closedHandler;
+            if (outputHandler is not null)
+                gameLauncher.GameOutputEvent -= outputHandler;
+        }
     }
 }

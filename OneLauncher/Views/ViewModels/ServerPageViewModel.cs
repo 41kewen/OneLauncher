@@ -83,6 +83,7 @@ internal sealed class ServerItem : BaseViewModel
 
 internal partial class ServerPageViewModel : BaseViewModel
 {
+    private readonly UnitedCore _unitedCore;
     private readonly DBManager _dbManager;
     private readonly GameDataManager _gameDataManager;
     private readonly AddServerPaneViewModelFactory _addServerPaneViewModelFactory;
@@ -97,11 +98,13 @@ internal partial class ServerPageViewModel : BaseViewModel
     public ServerPageViewModel(
         DBManager dbManager,
         GameDataManager gameDataManager,
+        UnitedCore unitedCore,
         AddServerPaneViewModelFactory addServerPaneViewModelFactory,
         EditServerPaneViewModelFactory editServerPaneViewModelFactory,
         EditGameDataPaneViewModelFactory editGameDataPaneViewModelFactory
         )
     {
+        _unitedCore = unitedCore;
         _dbManager = dbManager;
         _gameDataManager = gameDataManager;
         _addServerPaneViewModelFactory = addServerPaneViewModelFactory;
@@ -237,6 +240,6 @@ internal partial class ServerPageViewModel : BaseViewModel
             return;
         }
 
-        await Game.EasyGameLauncher(gameData, serverEntry.ServerInfo, false);
+        await Game.EasyGameLauncher(_unitedCore, gameData, serverEntry.ServerInfo, false);
     }
 }

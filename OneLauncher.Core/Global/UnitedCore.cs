@@ -12,14 +12,21 @@ public class UnitedCore
     public TaskManager TaskManager { get; init; }
     internal static VersionInstallerService _VersionInstallerService;
     public VersionInstallerService VersionInstallerService { get; init; }
+    internal static ResourceInstallerService _ResourceInstallerService;
+    public ResourceInstallerService ResourceInstallerService { get; init; }
+    internal static GameLaunchService _GameLaunchService;
+    public GameLaunchService GameLaunchService { get; init; }
     internal static List<VersionBasicInfo> _MojangVersionList;
     public List<VersionBasicInfo> MojangVersionList { get; set; }
     public static async Task<UnitedCore> Initialize()
     {
+        var taskManager = new TaskManager();
         return new UnitedCore()
         {
-            TaskManager = _TaskManager = new TaskManager(),
+            TaskManager = _TaskManager = taskManager,
             VersionInstallerService = _VersionInstallerService = new VersionInstallerService(),
+            ResourceInstallerService = _ResourceInstallerService = new ResourceInstallerService(),
+            GameLaunchService = _GameLaunchService = new GameLaunchService(taskManager),
             MojangVersionList = _MojangVersionList = new (await VersionsList.GetOrRefreshVersionListAsync())
         };
     }
