@@ -174,6 +174,22 @@ public class PCL2Importer
 
     private async Task CopyContentAsync(string source, string destination, string versionJson, bool topLevel)
     {
+        var files = new List<(string Source, string Target)>();
+        PlanContent(source, destination, versionJson, topLevel, files);
+        Report(DownProgress.DownAndInstModFiles, files.Count, 0, "迁移 Mods、配置和存档");
+        int completed = 0;
+        foreach (var file in files)
+        {
+            _token.ThrowIfCancellationRequested();
+            await CopyFileAsync(file.Source, file.Target, _token);
+            Report(DownProgress.DownAndInstModFiles, files.Count, ++completed,
+                Path.GetRelativePath(destination, file.Target));
+        }
+    }
+
+    private void PlanContent(string source, string destination, string versionJson, bool topLevel,
+        List<(string Source, string Target)> files)
+    {
         foreach (string file in Directory.EnumerateFiles(source))
         {
             _token.ThrowIfCancellationRequested();
@@ -182,7 +198,7 @@ public class PCL2Importer
             if (topLevel && (file.Equals(versionJson, PclImportPaths.Comparison) ||
                 name.Equals("launch.json", StringComparison.OrdinalIgnoreCase) ||
                 name.Equals(Path.GetFileName(source) + ".jar", StringComparison.OrdinalIgnoreCase))) continue;
-            await CopyFileAsync(file, PclImportPaths.Resolve(destination, name), _token);
+            files.Add((file, PclImportPaths.Resolve(destination, name)));
         }
         foreach (string directory in Directory.EnumerateDirectories(source))
         {
@@ -193,7 +209,7 @@ public class PCL2Importer
                 name.Equals("natives", StringComparison.OrdinalIgnoreCase) || name.EndsWith("-natives", StringComparison.OrdinalIgnoreCase))) continue;
             string target = PclImportPaths.Resolve(destination, name);
             Directory.CreateDirectory(target);
-            await CopyContentAsync(directory, target, versionJson, false);
+            PlanContent(directory, target, versionJson, false, files);
         }
     }
 

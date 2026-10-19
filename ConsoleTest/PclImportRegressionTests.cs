@@ -52,8 +52,21 @@ internal static class PclImportRegressionTests
         using var handler = new ResourceHandler();
         using var download = new Download(new HttpClient(handler));
         GameData? registered = null;
-        var importer = new PCL2Importer(fixture.Target, download, Guid.Empty, data => { registered = data; return Task.CompletedTask; }, token: token);
+        var contentProgress = new List<(int Total, int Completed)>();
+        var progress = new CallbackProgress(value =>
+        {
+            if (value.Title == DownProgress.DownAndInstModFiles)
+                contentProgress.Add((value.AllFiles, value.DownedFiles));
+            if (value.Title == DownProgress.Done)
+                Require(registered != null, "导入进度在实例登记前报告完成。");
+        });
+        var importer = new PCL2Importer(fixture.Target, download, Guid.Empty,
+            data => { registered = data; return Task.CompletedTask; }, progress, token);
         await importer.ImportAsync(fixture.Source);
+        Require(contentProgress.Count > 1 && contentProgress[0].Completed == 0 &&
+            contentProgress[^1].Completed == contentProgress[^1].Total &&
+            contentProgress.Select(value => value.Completed).SequenceEqual(Enumerable.Range(0, contentProgress.Count)),
+            "Mods、配置和存档迁移没有报告真实文件计数。");
         Require(handler.Requests == 0, "完整本地实例发起了网络请求或重新安装 loader。");
         Require(registered is { ModLoader: ModEnum.forge, ModLoaderVersion: "47.4.20", HasImportedLaunchManifest: true }, "Forge 被误认或版本丢失。");
         string target = Path.Combine(fixture.Target, "instance", registered!.InstanceId);
@@ -219,16 +232,23 @@ internal static class PclImportRegressionTests
 
     private static async Task CancellationAsync(string root, CancellationToken token)
     {
-        var fixture = await FixtureAsync(root, "cancel", token);
-        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(token);
-        bool registered = false;
-        using var download = new Download(new HttpClient(new ResourceHandler()));
-        var progress = new CallbackProgress(value => { if (value.Title == DownProgress.DownLibs) cancel.Cancel(); });
-        var importer = new PCL2Importer(fixture.Target, download, Guid.Empty, _ => { registered = true; return Task.CompletedTask; }, progress, cancel.Token);
-        Task importing = importer.ImportAsync(fixture.Source);
-        try { await importing; throw new InvalidOperationException("取消被当成成功。"); }
-        catch (OperationCanceledException) { Require(importing.IsCanceled && !registered, "取消状态或注册错误。"); }
-        Require(!Directory.EnumerateDirectories(Path.Combine(fixture.Target, "instance")).Any(), "取消留下半成品实例。");
+        foreach (DownProgress stage in new[] { DownProgress.DownLibs, DownProgress.DownAndInstModFiles })
+        {
+            var fixture = await FixtureAsync(root, "cancel-" + stage, token);
+            using var cancel = CancellationTokenSource.CreateLinkedTokenSource(token);
+            bool registered = false;
+            using var download = new Download(new HttpClient(new ResourceHandler()));
+            var progress = new CallbackProgress(value =>
+            {
+                if (value.Title == stage && (stage == DownProgress.DownLibs || value.DownedFiles == 1))
+                    cancel.Cancel();
+            });
+            var importer = new PCL2Importer(fixture.Target, download, Guid.Empty, _ => { registered = true; return Task.CompletedTask; }, progress, cancel.Token);
+            Task importing = importer.ImportAsync(fixture.Source);
+            try { await importing; throw new InvalidOperationException("取消被当成成功。"); }
+            catch (OperationCanceledException) { Require(importing.IsCanceled && !registered, "取消状态或注册错误。"); }
+            Require(!Directory.EnumerateDirectories(Path.Combine(fixture.Target, "instance")).Any(), "取消留下半成品实例。");
+        }
         Console.WriteLine("PASS: cancellation propagates / no registration / cleanup");
     }
 
