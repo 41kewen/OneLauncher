@@ -1,33 +1,29 @@
 <Project>
-  <!--
-    Platform constants must describe the target RID, not the OS running MSBuild.
-    This is important for cross-publishing linux-x64/osx-* packages from Windows.
-  -->
-  <!-- Platform-specific #if branches make the class libraries RID-sensitive.
-       Tell the SDK to keep RuntimeIdentifier across project references. -->
-  <PropertyGroup>
+  <!-- Only these libraries compile platform-specific APIs. Let the SDK propagate
+       a global RID; do not rewrite its internal project-reference metadata. -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'OneLauncher' or '$(MSBuildProjectName)' == 'OneLauncher.Core' or '$(MSBuildProjectName)' == 'OneLauncher.Console'">
     <IsRidAgnostic>false</IsRidAgnostic>
   </PropertyGroup>
 
-  <!-- RuntimeIdentifier from a publish profile is not a global MSBuild property.
-       Add it to resolved project references so nested libraries use the same RID. -->
-  <Target Name="PropagateRuntimeIdentifierToProjectReferences"
-          AfterTargets="_GetProjectReferenceTargetFrameworkProperties"
-          Condition="'$(RuntimeIdentifier)' != ''">
-    <ItemGroup>
-      <_MSBuildProjectReferenceExistent>
-        <SetTargetFramework>%(_MSBuildProjectReferenceExistent.SetTargetFramework);RuntimeIdentifier=$(RuntimeIdentifier)</SetTargetFramework>
-      </_MSBuildProjectReferenceExistent>
-    </ItemGroup>
-  </Target>
+  <PropertyGroup Condition="'$(OneLauncherTargetOS)' == 'Windows'">
+    <DefineConstants>$(DefineConstants);ONELAUNCHER_TARGET_WINDOWS</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(OneLauncherTargetOS)' == 'Linux'">
+    <DefineConstants>$(DefineConstants);ONELAUNCHER_TARGET_LINUX</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(OneLauncherTargetOS)' == 'macOS'">
+    <DefineConstants>$(DefineConstants);ONELAUNCHER_TARGET_MACOS</DefineConstants>
+  </PropertyGroup>
 
-  <PropertyGroup Condition="'$(RuntimeIdentifier)' != '' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">
-    <DefineConstants>$([System.String]::Copy('$(DefineConstants)').Replace(';WINDOWS', '').Replace(';LINUX', '').Replace(';MACOS', ''));WINDOWS</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(RuntimeIdentifier)' != '' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))">
-    <DefineConstants>$([System.String]::Copy('$(DefineConstants)').Replace(';WINDOWS', '').Replace(';LINUX', '').Replace(';MACOS', ''));LINUX</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(RuntimeIdentifier)' != '' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))">
-    <DefineConstants>$([System.String]::Copy('$(DefineConstants)').Replace(';WINDOWS', '').Replace(';LINUX', '').Replace(';MACOS', ''));MACOS</DefineConstants>
-  </PropertyGroup>
+  <Target Name="ValidateOneLauncherTargetPlatform" BeforeTargets="PrepareForBuild;PrepareForPublish"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(RuntimeIdentifier)' == '' and '$(Configuration)' != 'Debug'"
+           Text="Release builds require an explicit RuntimeIdentifier. Use -r win-x64/linux-x64/osx-arm64 or a platform PublishProfile." />
+    <Error Condition="'$(RuntimeIdentifier)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(RuntimeIdentifier)', '^(win|linux|osx)-(x64|arm64)$'))"
+           Text="Unsupported OneLauncher RuntimeIdentifier: $(RuntimeIdentifier). Supported: win/linux/osx with x64 or arm64." />
+    <Error Condition="'$(OneLauncherTargetOS)' == ''"
+           Text="Cannot determine OneLauncher target OS. Specify a supported RuntimeIdentifier." />
+    <Error Condition="'$(OneLauncherProfileOS)' != '' and '$(OneLauncherProfileOS)' != '$(OneLauncherTargetOS)'"
+           Text="PublishProfile targets $(OneLauncherProfileOS), but RuntimeIdentifier $(RuntimeIdentifier) targets $(OneLauncherTargetOS)." />
+  </Target>
 </Project>

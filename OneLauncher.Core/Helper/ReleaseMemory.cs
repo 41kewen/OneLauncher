@@ -16,7 +16,7 @@ public static class ReleaseMemory
         public OptimizationFailedException(string message, Exception innerException) : base(message, innerException) { }
     }
 
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
     #region Windows P/Invoke 导入
 
     [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
@@ -147,7 +147,7 @@ public static class ReleaseMemory
 
 #endif
 
-#if MACOS
+#if ONELAUNCHER_TARGET_MACOS
     private static Task OptimizeForMacOsAsync()
     {
         // macOS implementation remains the same
@@ -189,9 +189,9 @@ public static class ReleaseMemory
 
     public static Task OptimizeAsync()
     {
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
         return OptimizeForWindowsAsync();
-#elif MACOS
+#elif ONELAUNCHER_TARGET_MACOS
         return OptimizeForMacOsAsync();
 #else
         return Task.CompletedTask;

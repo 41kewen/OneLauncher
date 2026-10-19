@@ -12,7 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace OneLauncher.Core.Downloader;
-public class RaceDownloader
+internal class RaceDownloader
 {
     private readonly HttpClient _httpClient;
     public RaceDownloader(HttpClient client) => _httpClient = client;

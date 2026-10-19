@@ -24,6 +24,7 @@ internal partial class SettingsPageViewModel : BaseViewModel
     private readonly DBManager _dbManger;
     private readonly JavaManager _javaManager;
     private readonly GameDataManager _gameDataManager;
+    private readonly UnitedCore _unitedCore;
     public string Version => Init.ApplicationVersoin;
     #region 启动参数优化选项
     [ObservableProperty]
@@ -69,7 +70,7 @@ internal partial class SettingsPageViewModel : BaseViewModel
             UseShellExecute = true,
             FileName = Environment.ProcessPath,
             Arguments = "--releaseMemory"
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
             ,
             Verb = "runas" // 请求管理员权限
 #endif
@@ -204,16 +205,17 @@ internal partial class SettingsPageViewModel : BaseViewModel
     {
         PaneContent = new JavaInstallPane
         {
-            DataContext = new JavaInstallPaneViewModel(_javaManager, () => IsPaneShow = false)
+            DataContext = new JavaInstallPaneViewModel(_javaManager, _unitedCore, () => IsPaneShow = false)
         };
         IsPaneShow = true;
     }
 
     // 构造函数接收正确的 DBManger 类型
-    public SettingsPageViewModel(DBManager configManager, JavaManager javaManager,GameDataManager gameDataManager)
+    public SettingsPageViewModel(DBManager configManager, JavaManager javaManager,UnitedCore unitedCore,GameDataManager gameDataManager)
     {
         this._dbManger = configManager;
         this._javaManager = javaManager;
+        this._unitedCore = unitedCore;
         this._gameDataManager = gameDataManager;
 #if DEBUG
         if (Design.IsDesignMode)

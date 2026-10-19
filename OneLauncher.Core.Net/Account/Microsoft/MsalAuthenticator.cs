@@ -9,7 +9,7 @@ using OneLauncher.Core.Global;
 using OneLauncher.Core.Helper.Models;
 using OneLauncher.Core.Net.Account.Microsoft.JsonModels;
 
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
 using Microsoft.Identity.Client.Broker;
 #endif
 namespace OneLauncher.Core.Net.Account.Microsoft;
@@ -26,7 +26,7 @@ public class MsalAuthenticator : IDisposable
         =>msalClient.GetAccountsAsync();
     public Task<AuthenticationResult> AcquireTokenSilentc(IAccount account)
         => msalClient.AcquireTokenSilent(Scopes, account).ExecuteAsync();
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
     /// <summary>
     /// 作为新账号弹出使用仅限微软视窗操作系统的系统内置级窗口以高安全性的形式以弹出交互式获取微软到麻将访问令牌并返回
     /// </summary>
@@ -86,7 +86,7 @@ public class MsalAuthenticator : IDisposable
             .WithAuthority("https://login.microsoftonline.com/consumers")
             .WithDefaultRedirectUri();
 
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
         // 仅在 Windows 平台上编译时，才添加 Broker 配置
         var brokerOptions = new BrokerOptions(BrokerOptions.OperatingSystems.Windows);
         clientBuilder.WithBroker(brokerOptions);
@@ -117,7 +117,7 @@ public class MsalAuthenticator : IDisposable
         Directory.CreateDirectory(cacheDirectory);
         var storageBuilder = new StorageCreationPropertiesBuilder("onelauncher.msal.cache.dat", cacheDirectory);
 
-#if LINUX
+#if ONELAUNCHER_TARGET_LINUX
         // The default Linux storage configuration in some MSAL Extensions versions
         // leaves keyring attribute names unset, which fails during first startup.
         // Supply stable metadata explicitly so desktop Linux keyrings can be used.
@@ -128,7 +128,7 @@ public class MsalAuthenticator : IDisposable
             new KeyValuePair<string, string>("application", "OneLauncher"),
             new KeyValuePair<string, string>("version", "1"));
 #endif
-#if MACOS
+#if ONELAUNCHER_TARGET_MACOS
         // The same MSAL Extensions versions also leave the macOS Keychain service
         // and account names null. MacKeychainAccessor rejects a null service name
         // before the cache can be created.

@@ -4,6 +4,7 @@
              xmlns:views="using:OneLauncher.Views"
              xmlns:diagnostics="using:Avalonia.Diagnostics"
 			 xmlns:vm="using:OneLauncher.Views.Converters"
+             xmlns:controls="using:OneLauncher.Views.Controls"
              x:Class="OneLauncher.App"
              RequestedThemeVariant="Default">
 	<Application.Resources>
@@ -20,15 +21,7 @@
 		<FluentTheme />
 		<StyleInclude Source="avares://OneLauncher/Views/Styles/Styles.axaml"/>
 		<Style Selector="TextBox">
-			<Setter Property="ContextMenu">
-				<ContextMenu DataContext="{Binding $parent[TextBox]}">
-					<MenuItem Header="复制" Command="{Binding Copy}" />
-					<MenuItem Header="剪切" Command="{Binding Cut}" />
-					<MenuItem Header="粘贴" Command="{Binding Paste}" />
-					<Separator/>
-					<MenuItem Header="全选" Command="{Binding SelectAll}"/>
-				</ContextMenu>
-			</Setter>
+			<Setter Property="controls:TextBoxEditMenu.Enabled" Value="True"/>
 		</Style>
 	</Application.Styles>
 </Application>

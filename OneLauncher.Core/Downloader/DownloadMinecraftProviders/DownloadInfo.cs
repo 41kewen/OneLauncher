@@ -22,7 +22,7 @@ public partial class DownloadInfo
     public string GameRootPath { get; init; }
     
     // 核心下载组件与配置
-    public Download DownloadTool { get; init; }
+    internal Download DownloadTool { get; init; }
     public VersionInfomations VersionMojangInfo { get; init; }
 
     // 用户意图与版本选择

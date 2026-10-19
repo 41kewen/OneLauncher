@@ -40,7 +40,8 @@ public class AccountManager : BasicDataManager<AccountData>
     {
     }
 
-    protected override JsonSerializerContext GetJsonContext() => AccountDataJsonContext.Default;
+    protected override System.Text.Json.Serialization.Metadata.JsonTypeInfo<AccountData> CreateJsonTypeInfo(JsonSerializerOptions options)
+        => new AccountDataJsonContext(options).AccountData;
     protected override Task PostInitialize()
     {
         // 如果没有用户模型，则创建默认

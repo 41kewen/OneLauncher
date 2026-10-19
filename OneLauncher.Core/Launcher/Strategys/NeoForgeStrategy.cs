@@ -40,7 +40,7 @@ internal class NeoForgeStrategy : IModArgStrategy
             {
                 { "library_directory", Path.Combine(_basePath, "libraries") },
                 { "version_name", _versionID },
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
                 { "classpath_separator" , ";" }
 #else
                 { "classpath_separator" , ":" }

@@ -41,7 +41,7 @@ internal class ForgeStrategy : IModArgStrategy
             // Forge/NeoForge 的 jvm 参数需要这两个占位符
             { "library_directory", Path.Combine(_basePath, "libraries") },
             { "version_name", _versionID },
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
             { "classpath_separator" , ";" }
 #else
             { "classpath_separator" , ":" }
