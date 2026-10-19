@@ -9,6 +9,9 @@
        every project in the graph. SDK profile imports happen too late for this. -->
   <PropertyGroup>
     <_OneLauncherProfileName Condition="'$(PublishProfile)' != ''">$([System.IO.Path]::GetFileNameWithoutExtension('$(PublishProfile)'))</_OneLauncherProfileName>
+    <!-- VS can pass the profile path instead of the CLI PublishProfile name. -->
+    <_OneLauncherProfileName Condition="'$(_OneLauncherProfileName)' == '' and '$(WebPublishProfileFile)' != ''">$([System.IO.Path]::GetFileNameWithoutExtension('$(WebPublishProfileFile)'))</_OneLauncherProfileName>
+    <_OneLauncherProfileName Condition="'$(_OneLauncherProfileName)' == '' and '$(PublishProfileFullPath)' != ''">$([System.IO.Path]::GetFileNameWithoutExtension('$(PublishProfileFullPath)'))</_OneLauncherProfileName>
     <_OneLauncherSharedProfile Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(_OneLauncherProfileName)', '^(WindowsAot|WindowsJit|LinuxAot|LinuxJit|MacOSAot|MacOSJit|FolderProfile|FolderProfile1|FolderProfileAOTWINDOWS|NativeAotSingleFile)$'))">$(MSBuildThisFileDirectory)OneLauncher.Desktop/Properties/PublishProfiles/$(_OneLauncherProfileName).pubxml</_OneLauncherSharedProfile>
   </PropertyGroup>
   <Import Project="$(_OneLauncherSharedProfile)" Condition="'$(_OneLauncherSharedProfile)' != ''" />
