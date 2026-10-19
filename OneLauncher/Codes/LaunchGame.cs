@@ -31,7 +31,7 @@ internal class Game
         public string ProcessOutputs;
         public string FormerLaunchArgs;
 #pragma warning disable CS8618 
-        public LaunchException(GameData data)
+        public LaunchException(GameData data, string gameDirectory, string output, int exitCode)
 #pragma warning restore CS8618 
         { 
             InstanceName = data.Name;
@@ -40,8 +40,10 @@ internal class Game
             ModType = data.ModLoader;
             SystemEnvironmentInformations = 
                 $"OSVersion:{Environment.OSVersion} UserName:{Environment.UserName} CPU:{Environment.CpuUsage.TotalTime}";
-            ProcessOutputs = File.ReadAllText(Path.Combine(Init.GameRootPath,"logs","latest.log"));
-            FormerLaunchArgs = File.ReadAllText(Path.Combine(Init.BasePath, "LastLaunchArgs.bat"));
+            ProcessOutputs = $"退出码：{exitCode}{Environment.NewLine}{output}{Environment.NewLine}" +
+                LaunchDiagnostics.ReadOptionalLog(Path.Combine(gameDirectory, "logs", "latest.log"));
+            FormerLaunchArgs = LaunchDiagnostics.ReadOptionalLog(Path.Combine(Init.BasePath, "LastLaunchArgs.bat"));
+            ModList = new List<string>();
             var path = Path.Combine(data.InstancePath, "mods");
             if (Directory.Exists(path))
             {
@@ -54,6 +56,7 @@ internal class Game
             else
                 ModList = new List<string>();
         }
+
     }
     public static async Task EasyGameLauncher(GameData gameData,ServerInfo? serverInfo,bool useDebugMode)
     {
@@ -61,6 +64,16 @@ internal class Game
         {
             WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("正在启动游戏..."));
             using var gameLauncher = new GameLauncher();
+            var recentOutput = new Queue<string>();
+            object outputLock = new();
+            gameLauncher.GameOutputEvent += message =>
+            {
+                lock (outputLock)
+                {
+                    recentOutput.Enqueue(message);
+                    while (recentOutput.Count > 200) recentOutput.Dequeue();
+                }
+            };
             gameLauncher.GameStartedEvent += () =>
                 WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("游戏已启动！"));
             gameLauncher.GameClosedEvent += (code) =>
@@ -74,7 +87,7 @@ internal class Game
                              "游戏异常退出",
                              $"检测到游戏异常退出，代码：{code}{Environment.NewLine}建议尝试以调式模式启动或询问Agent以寻找异常原因{Environment.NewLine}点击重试以激活Agent调试",
                              OlanExceptionAction.Warning,
-                             new LaunchException(gameData),
+                              new LaunchException(gameData, gameLauncher.GameDirectory, string.Concat(recentOutput), code),
                              () => _ = EasyGameLauncher(gameData, serverInfo, true));
                 }
                 catch(OlanException ex)
@@ -120,4 +133,3 @@ internal class Game
         #endregion
     }
 }
-

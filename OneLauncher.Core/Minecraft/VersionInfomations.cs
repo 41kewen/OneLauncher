@@ -109,7 +109,7 @@ public class VersionInfomations
                 libraries.Add(new NdDowItem(
                     Url: lib.Downloads.Artifact.Url,
                     Path: libPath,
-                    Size: (int)lib.Downloads.Artifact.Size,
+                    Size: lib.Downloads.Artifact.Size ?? 0,
                     Sha1: lib.Downloads.Artifact.Sha1
                 ));
 
@@ -130,7 +130,7 @@ public class VersionInfomations
                     libraries.Add(new NdDowItem(
                         Url: nativeArtifact.Url,
                         Path: nativePath,
-                        Size: (int)nativeArtifact.Size,
+                        Size: nativeArtifact.Size ?? 0,
                         Sha1: nativeArtifact.Sha1
                     ));
                 }
@@ -209,7 +209,7 @@ public class VersionInfomations
         var t = new NdDowItem(
             Url: info.Downloads.Client.Url,
             Sha1: info.Downloads.Client.Sha1,
-            Size: (int)info.Downloads.Client.Size,
+            Size: info.Downloads.Client.Size ?? 0,
             Path: Path.Combine(basePath, "versions", info.ID, $"{info.ID}.jar")
         );
         return t;
@@ -223,7 +223,7 @@ public class VersionInfomations
         return new NdDowItem(
             Url: info.AssetIndex.Url,
             Path: Path.Combine(basePath, "assets", "indexes", $"{info.AssetIndex.Id}.json"),
-            Size: (int)info.AssetIndex.Size,
+            Size: info.AssetIndex.Size ?? 0,
             Sha1: info.AssetIndex.Sha1
         );
     }
@@ -255,7 +255,7 @@ public class VersionInfomations
         return new NdDowItem(
             Url: info.Logging.Client.File.Url,
             Sha1: info.Logging.Client.File.Sha1,
-            Size: (int)info.Logging.Client.File.Size,
+            Size: info.Logging.Client.File.Size ?? 0,
             Path: Path.Combine(basePath, "versions", info.ID, info.Logging.Client.File.Id)
         );
     }
@@ -271,4 +271,3 @@ public class VersionInfomations
         return info?.JavaVersion?.MajorVersion ?? Tools.ForNullJavaVersion(info.ID);
     }
 }
-
