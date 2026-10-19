@@ -35,3 +35,11 @@ dotnet ConsoleTest/bin/Debug/net10.0/ConsoleTest.dll --launch-regression-tests
 三个 PR 均从同一上游 master 基线独立提出。PCL 和 Forge 使用完全一致的 `DownloadFileOperations`、测试可见性声明及最小测试分发入口；可选部分方法使每组回归在另一组未合并时仍能编译，合并后也不会引入不同版本的重复工具。
 
 未验证 Linux／macOS、Native AOT 或进入存档后的长期运行。本 PR 不上传游戏内容、账号、日志、二进制或本机路径报告。
+
+## 同步上游
+
+发布期间上游新增启动会话服务，现已通过普通 merge 同步 master `27cb3a3`，未改写已发布历史。保留 `LaunchService`、任务中心进度、取消处理、事件解绑和目标平台编译规则，只增加实际游戏目录的只读诊断入口，不恢复旧启动接口。
+
+新基线上独立桌面和 ConsoleTest 构建成功，17 项回归再次全部通过；三份组合无冲突，组合桌面构建及全部 31 项回归通过。上游 headless smoke 的普通 Debug 构建和执行通过，共 34 项 UI/JSON 断言，禁用反射 JSON；这不是 Native AOT 发布验证。
+
+上游 `global.json` 要求 SDK 10.0.402，本机仅有 10.0.302；本次从仓库外以项目绝对路径使用现有 SDK 验证，未修改锁定配置。尚未在锁定 SDK 上复测，也未运行目标平台矩阵脚本。
