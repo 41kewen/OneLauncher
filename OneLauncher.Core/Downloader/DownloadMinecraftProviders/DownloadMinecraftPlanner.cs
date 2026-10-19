@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace OneLauncher.Core.Downloader.DownloadMinecraftProviders;
-public partial class DownloadMinecraft
+internal partial class DownloadMinecraft
 {
     internal readonly record struct DownloadPlan(
         List<NdDowItem> AllFilesGoVerify,

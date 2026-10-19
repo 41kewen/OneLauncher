@@ -3,6 +3,7 @@ using OneLauncher.Core.Helper.Models;
 using OneLauncher.Core.Minecraft.JsonModels;
 using System.Data;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 namespace OneLauncher.Core.Minecraft;
@@ -43,16 +44,16 @@ public class VersionInfomations
         NativesLibs.Clear();
 
         // 编译时确定的常量
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
         const string osName = "windows";
-        const string archName = "x64";
-#elif MACOS
-    const string osName = "osx";
-    const string archName = "arm64";
+#elif ONELAUNCHER_TARGET_MACOS
+        const string osName = "osx";
 #else // Linux
-    const string osName = "linux";
-    const string archName = "x64";
+        const string osName = "linux";
 #endif
+        // Match the running application's architecture, not a fixed OS assumption
+        // (macOS and Windows/Linux all support both x64 and arm64 profiles).
+        var archName = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
 
         foreach (var lib in info.Libraries)
         {
@@ -147,16 +148,14 @@ public class VersionInfomations
     public Dictionary<string, string> GetLibraryiesForUsing()
     {
         var libraries = new Dictionary<string, string>(info.Libraries.Count);
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
         const string osName = "windows";
-        const string archName = "x64";
-#elif MACOS
+#elif ONELAUNCHER_TARGET_MACOS
         const string osName = "osx";
-        const string archName = "arm64";
 #else // Linux
         const string osName = "linux";
-        const string archName = "x64";
 #endif
+        var archName = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
         foreach (var lib in info.Libraries)
         {
             bool isAllowed = true;

@@ -9,7 +9,7 @@ using OneLauncher.Core.Net.ModService.Modrinth;
 
 
 namespace OneLauncher.Core.Downloader.DownloadMinecraftProviders;
-public partial class DownloadMinecraft
+internal partial class DownloadMinecraft
 {
     private IDownloadSourceUrlProvider[] _urlProviders;
     internal DownloadInfo info;

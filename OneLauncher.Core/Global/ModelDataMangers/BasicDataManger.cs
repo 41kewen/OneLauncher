@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
 
 namespace OneLauncher.Core.Global.ModelDataMangers;
@@ -15,21 +16,20 @@ public abstract class BasicDataManager<T> where T : class, new()
     public event Action? OnDataChanged; 
 
     private readonly string _configPath;
-    private readonly JsonSerializerOptions _serializerOptions; // AOT 用得到
+    private readonly JsonTypeInfo<T> _jsonTypeInfo;
     private readonly SemaphoreSlim _saveLock = new(1, 1); // 防止竞态
 
     protected BasicDataManager(string configPath)
     {
         _configPath = configPath;
-        _serializerOptions = new JsonSerializerOptions
+        _jsonTypeInfo = CreateJsonTypeInfo(new JsonSerializerOptions
         {
 #if DEBUG
             WriteIndented = true,
 #else
             WriteIndented = false,
 #endif
-            TypeInfoResolver = GetJsonContext()
-        };
+        });
     }
 
     public async Task InitializeAsync()
@@ -54,7 +54,7 @@ public abstract class BasicDataManager<T> where T : class, new()
                 }
                 else
                 {
-                    Data = await JsonSerializer.DeserializeAsync<T>(stream, _serializerOptions) as T ?? new T();
+                    Data = await JsonSerializer.DeserializeAsync(stream, _jsonTypeInfo) ?? new T();
                 }
             }
             catch (Exception ex)
@@ -78,7 +78,7 @@ public abstract class BasicDataManager<T> where T : class, new()
         {
             // 覆盖原始文件
             await using var fs = new FileStream(_configPath,FileMode.Create,FileAccess.Write,FileShare.Read,0,true);
-            await JsonSerializer.SerializeAsync<T>(fs,Data, _serializerOptions);
+            await JsonSerializer.SerializeAsync(fs, Data, _jsonTypeInfo);
             OnDataChanged?.Invoke();
             Debug.WriteLine("[OneLauncher.Core.Global.ModelDataMangers.BasicDataManager.Save] 已触发数据更改事件");
         }
@@ -87,5 +87,5 @@ public abstract class BasicDataManager<T> where T : class, new()
             _saveLock.Release();
         }
     }
-    protected abstract JsonSerializerContext GetJsonContext();
+    protected abstract JsonTypeInfo<T> CreateJsonTypeInfo(JsonSerializerOptions options);
 }

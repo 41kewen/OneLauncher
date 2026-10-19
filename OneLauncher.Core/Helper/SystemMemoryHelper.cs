@@ -179,7 +179,7 @@ public static class SystemMemoryHelper
 
         public MEMORYSTATUSEX()
         {
-            this.dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
+            this.dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>();
         }
     }
 

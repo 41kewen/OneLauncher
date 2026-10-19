@@ -1,0 +1,38 @@
+<Project>
+  <PropertyGroup Condition="'$(PublishAot)' == 'true'">
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+    <ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
+    <IlcTreatWarningsAsErrors>true</IlcTreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- AOT targets come from NuGet. A publish reusing a non-AOT restore
+       must fail instead of silently publishing CoreCLR with PublishAot=true. -->
+  <Target Name="ValidateOneLauncherAotToolchain" BeforeTargets="PrepareForPublish"
+          Condition="'$(PublishAot)' == 'true'">
+    <Error Condition="'$(IlcCompileDependsOn)' == '' or '$(NativeCompilationDuringPublish)' != 'true'"
+           Text="Native AOT toolchain is missing. Restore with the SAME PublishProfile/RuntimeIdentifier/PublishAot properties, or publish without --no-restore." />
+  </Target>
+
+  <Target Name="ValidateOneLauncherPublishTarget" BeforeTargets="PrepareForPublish">
+    <Error Condition="'$(RuntimeIdentifier)' == ''"
+           Text="Publishing requires an explicit RuntimeIdentifier or platform PublishProfile, including Debug publishes." />
+    <Error Condition="'$(OneLauncherCompilationMode)' == 'aot' and '$(PublishAot)' != 'true'"
+           Text="An AOT profile cannot be overridden with PublishAot=false. Select the corresponding JIT profile." />
+    <Error Condition="'$(OneLauncherCompilationMode)' == 'jit' and '$(PublishAot)' != 'false'"
+           Text="A JIT profile cannot be overridden with PublishAot=true. Select the corresponding AOT profile." />
+  </Target>
+
+  <Target Name="VerifyOneLauncherNativePublish" AfterTargets="Publish" Condition="'$(PublishAot)' == 'true'">
+    <PropertyGroup>
+      <_OneLauncherNativeExecutable>$(PublishDir)$(AssemblyName)</_OneLauncherNativeExecutable>
+      <_OneLauncherNativeExecutable Condition="'$(OneLauncherTargetOS)' == 'Windows'">$(PublishDir)$(AssemblyName).exe</_OneLauncherNativeExecutable>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(_OneLauncherNativeExecutable)')"
+           Text="Native AOT executable was not produced: $(_OneLauncherNativeExecutable)" />
+    <Error Condition="Exists('$(PublishDir)coreclr.dll') or Exists('$(PublishDir)clrjit.dll') or Exists('$(PublishDir)libcoreclr.so') or Exists('$(PublishDir)libclrjit.so') or Exists('$(PublishDir)libcoreclr.dylib') or Exists('$(PublishDir)libclrjit.dylib') or Exists('$(PublishDir)$(AssemblyName).dll')"
+           Text="AOT publish contains managed/CoreCLR output. Use a separate clean output directory for each RID and compilation mode." />
+  </Target>
+</Project>

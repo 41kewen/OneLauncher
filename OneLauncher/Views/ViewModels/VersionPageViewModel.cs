@@ -15,7 +15,6 @@ using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper;
 using OneLauncher.Core.Helper.ImportPCL2Version;
 using OneLauncher.Core.Helper.Models;
-using OneLauncher.Core.Launcher;
 using OneLauncher.Core.Net.Server;
 using OneLauncher.Views.Panes;
 using OneLauncher.Views.Panes.PaneViewModels;
@@ -31,17 +30,20 @@ using System.Threading.Tasks;
 namespace OneLauncher.Views.ViewModels;
 internal partial class VersionItem : BaseViewModel
 {
+    private readonly UnitedCore _unitedCore;
     /// <param Name="a">UserVersion实例</param>
     /// <param Name="IndexInInit">UserVsersion实例在整个Init.ConfigManager.config.VersionList中的索引值</param>
-    public VersionItem(UserVersion a)
+    public VersionItem(UserVersion a, UnitedCore unitedCore)
     {
+        _unitedCore = unitedCore;
         versionExp = a;
     }
     public UserVersion versionExp { get; set; }
     [RelayCommand]
     public async Task LaunchGame()
     {
-        _=new GameLauncher().Play(versionExp, useRootMode: true);
+        using var launchService = _unitedCore.GameLaunchService.CreateLaunchService($"启动 MC {versionExp.VersionID}");
+        await launchService.Play(versionExp, useRootMode: true);
     }
     [RelayCommand]
     public void ReadMoreInformations()
@@ -62,14 +64,16 @@ internal partial class VersionItem : BaseViewModel
 internal partial class VersionPageViewModel : BaseViewModel
 {
     private readonly DBManager _dBManager;
+    private readonly UnitedCore _unitedCore;
     private readonly NewGameDataPaneViewModelFactory _newGameDataPaneViewModelFactory;
     private void RefList()
     {
-        VersionList = _dBManager.Data.VersionList.Select(x => new VersionItem(x)).ToList();
+        VersionList = _dBManager.Data.VersionList.Select(x => new VersionItem(x, _unitedCore)).ToList();
     }
-    public VersionPageViewModel(DBManager dBManager, NewGameDataPaneViewModelFactory newGameDataPaneViewModelFactory)
+    public VersionPageViewModel(DBManager dBManager, UnitedCore unitedCore, NewGameDataPaneViewModelFactory newGameDataPaneViewModelFactory)
     {
         this._dBManager = dBManager;
+        _unitedCore = unitedCore;
         _newGameDataPaneViewModelFactory = newGameDataPaneViewModelFactory;
 #if DEBUG
         // 设计时数据
@@ -81,7 +85,7 @@ internal partial class VersionPageViewModel : BaseViewModel
                 {
                     VersionID="1.21.5",
                     AddTime=DateTime.Now
-                })
+                }, _unitedCore)
             };
         }
         else

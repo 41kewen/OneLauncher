@@ -7,6 +7,7 @@ using OneLauncher.Views.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace OneLauncher.Views.Panes.PaneViewModels;
 
@@ -48,7 +49,8 @@ internal sealed partial class TaskCenterPaneViewModel : BaseViewModel
             {
                 item = new TaskInstanceItemViewModel(task);
                 _taskItems.Add(task, item);
-                Tasks.Add(item);
+                // 最新创建的任务始终显示在顶部，避免用户向下滚动查找正在运行的任务。
+                Tasks.Insert(0, item);
             }
 
             item.RefreshStatus();

@@ -23,7 +23,7 @@ public enum DownProgress
     Verify,
     Done
 }
-public partial class DownloadMinecraft
+internal partial class DownloadMinecraft
 {
     private readonly JavaManager _javaManager = Init.JavaManager;
     private RaceDownloader RaceDownloader => new(info.DownloadTool.UnityClient);

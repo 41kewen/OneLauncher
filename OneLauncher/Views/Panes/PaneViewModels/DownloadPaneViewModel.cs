@@ -149,11 +149,11 @@ internal partial class DownloadPaneViewModel : BaseViewModel
                             FileName = p.c;
                         }));
                     // 执行下载
-                    await new DownloadMinecraft(
+                    await _unitedCore.VersionInstallerService.InstallNewVersion(
                         content,
                         progressReporter,
                         cts.Token
-                    ).MinecraftBasic();
+                    );
 
                     if (cts.IsCancellationRequested)
                     {

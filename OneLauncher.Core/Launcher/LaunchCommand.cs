@@ -27,7 +27,7 @@ public struct LaunchCommand(IEnumerable<string> fileArgs, IEnumerable<string> co
             Debug.WriteLine($"参数长度：{launchArg.Length}");
             tempFilePath = Path.GetTempFileName();
             await File.WriteAllTextAsync(tempFilePath, launchArg
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
                 .Replace("\\", @"\\") // Windows需要转义
 #endif
                 );

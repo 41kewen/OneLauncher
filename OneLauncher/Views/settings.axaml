@@ -103,11 +103,10 @@
 			  <Separator Classes="section-divider"/>
 			  <StackPanel Margin="0,6,0,0">
 				  <StackPanel Orientation="Horizontal">
-					  <TextBlock Text="开发人员：Lnetface（Zhi Wei）" />
-					  <TextBlock Text="打开项目网站：" Margin="8,0,0,0"/>
-				  <Button Classes="link-button" Command="{Binding OpenGithubCommand}">
-					  <TextBlock Text="GitHub"/>
-				  </Button>
+					  <TextBlock Text="开发人员：Lnetface（Zhi Wei）" VerticalAlignment="Center"/>
+					  <TextBlock Text="打开项目网站：" Margin="8,0,0,0" VerticalAlignment="Center"/>
+					  <Button x:Name="GitHubLink" Classes="link-button" Content="GitHub"
+							  Command="{Binding OpenGithubCommand}"/>
 				  </StackPanel>
 				  <TextBlock Tapped="TextBlock_Tapped">
 					  <Run Text="版本号："/>

@@ -16,6 +16,8 @@ internal sealed record JavaProviderItem(JavaProvider Provider, string DisplayNam
 internal partial class JavaInstallPaneViewModel : BaseViewModel
 {
     private readonly JavaManager _javaManager;
+    private readonly UnitedCore _unitedCore;
+    private TaskInstance _installingTask;
     private readonly Action _onCloseCallback;
     private CancellationTokenSource? _cts;
     private static readonly JavaProviderItem[] AllJavaProviders =
@@ -27,9 +29,10 @@ internal partial class JavaInstallPaneViewModel : BaseViewModel
         new(JavaProvider.OracleJDK, "Oracle JDK")
     ];
 
-    public JavaInstallPaneViewModel(JavaManager javaManager, Action onCloseCallback)
+    public JavaInstallPaneViewModel(JavaManager javaManager,UnitedCore unitedCore, Action onCloseCallback)
     {
         _javaManager = javaManager;
+        _unitedCore = unitedCore;
         _onCloseCallback = onCloseCallback;
         RefreshProviderOptions();
         RefreshInstalledState();
@@ -96,7 +99,8 @@ internal partial class JavaInstallPaneViewModel : BaseViewModel
         StatusText = overwrite
             ? $"正在准备覆盖安装 Java {SelectedJavaVersion}"
             : $"正在准备 Java {SelectedJavaVersion}";
-        CancellationTokenSource installCts = new();
+        _installingTask = _unitedCore.TaskManager.CreateTask("Java 安装");
+        CancellationTokenSource installCts = _installingTask.Token;
         _cts = installCts;
 
         try
@@ -104,9 +108,12 @@ internal partial class JavaInstallPaneViewModel : BaseViewModel
             var progress = new Progress<string>(message =>
             {
                 ProgressValue = Math.Min(28, ProgressValue + 1);
+                double progressPercentage = (ProgressValue == 0) ? 0 : (double)28 / ProgressValue * 100;
+                _installingTask.SetProgress("正在下载Java安装包", ProgressValue);
                 StatusText = message;
             });
 
+            _installingTask.SetProgress("正在安装Java", 100);
             await _javaManager.InstallJava(
                 SelectedJavaVersion,
                 SelectedJavaProvider.Provider,
@@ -118,7 +125,9 @@ internal partial class JavaInstallPaneViewModel : BaseViewModel
             StatusText = overwrite
                 ? $"Java {SelectedJavaVersion} 覆盖安装完成，已更新配置"
                 : $"Java {SelectedJavaVersion} 安装完成，已写入配置";
+            _installingTask.SetDone();
             RefreshInstalledState();
+            
         }
         catch (OperationCanceledException)
         {
@@ -128,11 +137,13 @@ internal partial class JavaInstallPaneViewModel : BaseViewModel
         catch (OlanException ex)
         {
             StatusText = "安装失败";
+            _installingTask.SetFailed(ex);
             RefreshInstalledState();
             await OlanExceptionWorker.ForOlanException(ex);
         }
         catch (Exception ex)
         {
+            _installingTask.SetFailed(ex);
             StatusText = "安装失败";
             RefreshInstalledState();
             await OlanExceptionWorker.ForUnknowException(ex);
@@ -159,7 +170,7 @@ internal partial class JavaInstallPaneViewModel : BaseViewModel
         if (IsInstalling)
         {
             StatusText = "正在取消安装...";
-            _cts?.Cancel();
+            _installingTask.Cancel();
             return;
         }
 

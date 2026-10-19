@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
-using System.Collections.Concurrent;
 using System.Threading;
 using System.Diagnostics;
 
@@ -23,9 +22,9 @@ public class TaskInstance
     public Exception? Exception { get; set; }
     public double Progress { get; private set; } = 0;
     public event Action<double>? ProgressChanged;
-    public event Action Finished;
-    public event Action Failed;
-    public event Action Canceled;
+    public event Action? Finished;
+    public event Action? Failed;
+    public event Action? Canceled;
     public void SetProgress(string current, double progress)
     {
         Current = current;
@@ -41,11 +40,21 @@ public class TaskInstance
     }
     public void Cancel()
     {
-        if(Token != null)
+        if (Token != null && Status == TaskInfoStatus.Running)
         {
-            Token.Cancel();
             Status = TaskInfoStatus.Canceled;
-            Canceled?.Invoke();
+            try
+            {
+                Token.Cancel();
+            }
+            catch(System.ObjectDisposedException)
+            {
+
+            }
+            finally
+            {
+                Canceled?.Invoke();
+            }
         }
     }
     public void SetDone()

@@ -4,7 +4,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using OneLauncher.Codes;
-using OneLauncher.Core.Downloader;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper.Models;
@@ -21,6 +20,7 @@ namespace OneLauncher.Views.Panes.PaneViewModels;
 internal partial class InstallModPaneViewModel : BaseViewModel
 {
     private readonly GameDataManager _gameDataManager;
+    private readonly UnitedCore _unitedCore;
 #if DEBUG
     // 给设计器预览的
     public InstallModPaneViewModel()
@@ -31,9 +31,10 @@ internal partial class InstallModPaneViewModel : BaseViewModel
 #endif
     private readonly ModItem modItem;
     private readonly Action _onCloseCallback;
-    public InstallModPaneViewModel(ModItem item,GameDataManager gameDataManager,Action onCloseCallback)
+    public InstallModPaneViewModel(ModItem item, GameDataManager gameDataManager, UnitedCore unitedCore, Action onCloseCallback)
     {
         this._gameDataManager = gameDataManager;
+        _unitedCore = unitedCore;
         modItem = item;
         ModName = item.Title;
         SupportVersions = item.SupportVersions;
@@ -86,30 +87,27 @@ internal partial class InstallModPaneViewModel : BaseViewModel
         IsShowMoreInfo = false;
         try
         {
-            using (Download downTask = new())
-            {
-                // 目标路径现在直接从 SelectedGameData 获取
-                string modsPath = Path.Combine(SelectedGameData.InstancePath, "mods");
+            // 目标路径现在直接从 SelectedGameData 获取
+            string modsPath = Path.Combine(SelectedGameData.InstancePath, "mods");
 
-                await downTask.StartDownloadMod(
-                    new Progress<(long all, long done, string c)>(p => Dispatcher.UIThread.Post(() =>
+            await _unitedCore.ResourceInstallerService.InstallMod(
+                new Progress<(long all, long done, string c)>(p => Dispatcher.UIThread.Post(() =>
+                {
+                    if (p.all > 0) // 避免除零错误
                     {
-                        if (p.all > 0) // 避免除零错误
-                        {
-                            CurrentProgress = (double)p.done / p.all * 100;
-                            Fs = $"{p.done}/{p.all}";
-                        }
-                        Dp = p.c; // 更新文件名或状态
-                    })),
-                    modItem.ID,
-                    modsPath,
-                    SelectedGameData.VersionId,
-                    SelectedGameData.ModLoader,
-                    IsIncludeDependencies: IsICS,
-                    // 先凑合用，未来再重写
-                    IsSha1: Init.ConfigManger.Data.OlanSettings.IsSha1Enabled
-                );
-            }
+                        CurrentProgress = (double)p.done / p.all * 100;
+                        Fs = $"{p.done}/{p.all}";
+                    }
+                    Dp = p.c; // 更新文件名或状态
+                })),
+                modItem.ID,
+                modsPath,
+                SelectedGameData.VersionId,
+                SelectedGameData.ModLoader,
+                includeDependencies: IsICS,
+                // 先凑合用，未来再重写
+                verifySha1: Init.ConfigManger.Data.OlanSettings.IsSha1Enabled
+            );
             WeakReferenceMessenger.Default.Send(
                 new MainWindowShowFlyoutMessage($"{ModName} 安装成功！"));
             //MainWindow.mainwindow.ShowFlyout($"{ModName} 安装成功！");

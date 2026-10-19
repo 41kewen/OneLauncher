@@ -10,7 +10,7 @@ using System.Security.Cryptography;
 
 namespace OneLauncher.Core.Downloader;
 
-public partial class Download : IDisposable
+internal partial class Download : IDisposable
 {
     /// <summary>
     /// 解压 ZIP 结构文件到指定目录
@@ -21,31 +21,7 @@ public partial class Download : IDisposable
     /// <exception cref="InvalidDataException">文件不是有效的 ZIP 格式</exception>
     public static void ExtractFile(string filePath, string extractPath)
     {
-            // 确保输出目录存在
-            Directory.CreateDirectory(extractPath);
-
-            // 打开 ZIP 文件
-            using (ZipArchive archive = ZipFile.OpenRead(filePath))
-            {
-                // 遍历 ZIP 条目
-                foreach (ZipArchiveEntry entry in archive.Entries)
-                {
-                    // 确定解压路径
-                    string destinationPath = Path.Combine(extractPath, entry.FullName);
-
-                    // 确保目录存在
-                    string destinationDir = Path.GetDirectoryName(destinationPath)
-                    ?? throw new OlanException("无法解压",$"无法找到文件'{destinationPath}'对应的文件夹");
-                    Directory.CreateDirectory(destinationDir);
-
-                    // 仅处理文件（跳过目录）
-                    if (!string.IsNullOrEmpty(entry.Name))
-                    {
-                        // 提取文件
-                        entry.ExtractToFile(destinationPath, overwrite: true);
-                    }
-                }
-            }
+        ZipFile.ExtractToDirectory(filePath, extractPath, overwriteFiles: true);
     }
     public Download(HttpClient? tc = null)
     {
