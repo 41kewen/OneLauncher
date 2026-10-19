@@ -140,6 +140,11 @@ internal partial class HomePageViewModel : BaseViewModel
                     return;
 
                 string path = selectedFile.Path.LocalPath;
+                if (!File.Exists(Path.Combine(path, "PCL", "Setup.ini")))
+                {
+                    WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("这不是有效的PCL版本文件夹", NotificationType.Warning, "导入失败"));
+                    return;
+                }
                 WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("正在导入。。。（这可能需要较长时间）"));
                 await new PCL2Importer(new Progress<(DownProgress Title, int AllFiles, int DownedFiles, string DowingFileName)>(p =>
                 {
