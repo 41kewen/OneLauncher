@@ -242,6 +242,6 @@ public class GameDataManager : BasicDataManager<GameDataRoot>
         return Save();
     }
 
-    protected override JsonSerializerContext GetJsonContext()
-        => GameDataJsonContext.Default;
+    protected override System.Text.Json.Serialization.Metadata.JsonTypeInfo<GameDataRoot> CreateJsonTypeInfo(JsonSerializerOptions options)
+        => new GameDataJsonContext(options).GameDataRoot;
 }

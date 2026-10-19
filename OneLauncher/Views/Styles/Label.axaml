@@ -4,15 +4,24 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Padding" Value="8,5"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
         <Setter Property="Cursor" Value="Hand"/>
     </Style>
-    <Style Selector="Button.link-button:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
-        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    <Style Selector="Button.link-button /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
     </Style>
-    <Style Selector="Button.link-button:pressed /template/ ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource AccentPressedBrush}"/>
+    <Style Selector="Button.link-button:pointerover, Button.link-button:pressed">
+        <Setter Property="Foreground" Value="{DynamicResource HyperlinkHoverForegroundBrush}"/>
+    </Style>
+    <Style Selector="Button.link-button:pointerover /template/ ContentPresenter, Button.link-button:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource HyperlinkHoverForegroundBrush}"/>
     </Style>
 </Styles>

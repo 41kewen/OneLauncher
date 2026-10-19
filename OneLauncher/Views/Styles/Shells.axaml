@@ -5,8 +5,8 @@
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="VerticalContentAlignment" Value="Stretch"/>
         <Setter Property="Template">
-            <ControlTemplate>
-                <SplitView IsPaneOpen="{Binding IsPaneOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+            <ControlTemplate TargetType="controls:PageShell">
+                <SplitView IsPaneOpen="{CompiledBinding IsPaneOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
                            DisplayMode="Overlay"
                            UseLightDismissOverlayMode="False"
                            OpenPaneLength="{TemplateBinding OpenPaneLength}"
@@ -20,12 +20,12 @@
                             </TransitioningContentControl.PageTransition>
                         </TransitioningContentControl>
                     </SplitView.Pane>
-                    <Grid IsEnabled="{Binding !IsPaneOpen, RelativeSource={RelativeSource TemplatedParent}}">
+                    <Grid IsEnabled="{CompiledBinding !IsPaneOpen, RelativeSource={RelativeSource TemplatedParent}}">
                         <ContentPresenter Content="{TemplateBinding Content}"
                                           ContentTemplate="{TemplateBinding ContentTemplate}"
                                           HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
                                           VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
-                        <Border IsVisible="{Binding IsPaneOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                        <Border IsVisible="{TemplateBinding IsPaneOpen}"
                                 Background="{DynamicResource ModalScrimBrush}"/>
                     </Grid>
                 </SplitView>
@@ -36,7 +36,7 @@
     <Style Selector="controls|PaneHeader">
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
         <Setter Property="Template">
-            <ControlTemplate>
+            <ControlTemplate TargetType="controls:PaneHeader">
                 <Grid MinHeight="44" ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
                     <Button Classes="pane-toolbar"
                             Command="{TemplateBinding BackCommand}"

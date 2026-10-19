@@ -16,7 +16,7 @@ namespace OneLauncher.Core.Mod.ModLoader.forgeseries
     /// <summary>
     /// 通用安装器，负责处理所有基于 install_profile.json 的 Mod 加载器安装流程 (如 Forge, NeoForge)。
     /// </summary>
-    public class ForgeSeriesInstallTasker
+    internal class ForgeSeriesInstallTasker
     {
         private readonly Download _downloadTask;
         private readonly string librariesPath;

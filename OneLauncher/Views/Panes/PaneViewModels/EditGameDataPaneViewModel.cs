@@ -117,7 +117,7 @@ internal partial class EditGameDataPaneViewModel : BaseViewModel
     {
         File.WriteAllTextAsync(
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop),$"快速启动 - {editingGameData.Name}"+
-            #if WINDOWS
+            #if ONELAUNCHER_TARGET_WINDOWS
             ".bat"
             #else
             ".sh"

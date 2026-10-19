@@ -24,6 +24,7 @@ namespace OneLauncher.Views.Panes.PaneViewModels;
 public enum PowerPlayMode { Host, Join }
 public partial class PowerPlayPaneViewModel : BaseViewModel
 {
+    private readonly UnitedCore _unitedCore;
     private readonly GameDataManager _gameDataManager;
     private readonly Action? _onCloseCallback;
     ~PowerPlayPaneViewModel()
@@ -32,8 +33,9 @@ public partial class PowerPlayPaneViewModel : BaseViewModel
         _gameDataManager.OnDataChanged -= OnListRefreshing;
         Stop();
     }
-    public PowerPlayPaneViewModel(IConnectService connectService,MCTPower mainPower,GameDataManager gameDataManager, Action? onCloseCallback = null)
+    public PowerPlayPaneViewModel(IConnectService connectService, MCTPower mainPower, GameDataManager gameDataManager, UnitedCore unitedCore, Action? onCloseCallback = null)
     {
+        _unitedCore = unitedCore;
         this._gameDataManager = gameDataManager;
         PropertyChanged += (s, e) =>
         {
@@ -102,7 +104,7 @@ public partial class PowerPlayPaneViewModel : BaseViewModel
             HostRoomCode = finalRoomCode;
             IsConnected = true;
             connectService.StartAsHost(p2pNodeName, null);
-            version.EasyGameLauncher(SelectedHostGameData); // 直接帮他把游戏启动了
+            _ = Game.EasyGameLauncher(_unitedCore, SelectedHostGameData, null, false);
         }
         catch (OlanException olanEx)
         {
@@ -190,11 +192,11 @@ public partial class PowerPlayPaneViewModel : BaseViewModel
                 // 启动P2P
                 mainPower.ConnectionEstablished += () =>
                 {
-                    version.EasyGameLauncher(instanceToLaunch, serverInfo: new ServerInfo
+                    _ = Game.EasyGameLauncher(_unitedCore, instanceToLaunch, new ServerInfo
                     {
                         Ip = "127.0.0.1",
                         Port = checked((ushort)localPort)
-                    });
+                    }, false);
                 };
 
                 connectService.Join(null, p2pNodeName, localPort, destPort, null, null, null);

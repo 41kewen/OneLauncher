@@ -1,7 +1,7 @@
 ﻿using OneLauncher.Core.Global;
 using OneLauncher.Core.Helper;
 using OneLauncher.Core.Helper.Models;
-using OneLauncher.Core.Launcher;
+using Microsoft.Extensions.DependencyInjection;
 using OneLauncher.Core.Net.Server;
 using System;
 using System.Collections.Generic;
@@ -18,11 +18,14 @@ public class Boot
     {
         try
         {
-            await Init.Initialize();
+            var services = await Init.Initialize();
+            using var serviceProvider = services.BuildServiceProvider();
+            var unitedCore = serviceProvider.GetRequiredService<UnitedCore>();
             switch (args[0])
             {
                 case "--quicklyPlay":
-                    await new GameLauncher().Play(args[1]);
+                    using (var launchService = unitedCore.GameLaunchService.CreateLaunchService())
+                        await launchService.Play(args[1]);
                     break;
                 case "--joinServer":
                     if (args.Length < 2) break;
@@ -36,7 +39,8 @@ public class Boot
 
                     var game = Init.GameDataManger.GetInstanceFromId(server.InstanceId);
                     if (game == null) break;
-                    await new GameLauncher().Play(game, server.ServerInfo);
+                    using (var launchService = unitedCore.GameLaunchService.CreateLaunchService())
+                        await launchService.Play(game, server.ServerInfo);
                     break;
                 case "--releaseMemory":
                     await ReleaseMemory.OptimizeAsync();

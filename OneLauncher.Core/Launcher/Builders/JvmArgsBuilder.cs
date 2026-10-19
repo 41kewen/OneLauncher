@@ -18,15 +18,16 @@ public partial class LaunchCommandBuilder
     private IEnumerable<string> BuildJvmArgs(IModArgStrategy? strategy)
     {
         string osName;
-#if WINDOWS
+#if ONELAUNCHER_TARGET_WINDOWS
         osName = "windows";
-#elif MACOS
+#elif ONELAUNCHER_TARGET_MACOS
         osName = "osx";
 #else
         osName = "linux"; 
 #endif  
-        // AI 写的，干什么用的我也不知道
-        string arch = RuntimeInformation.OSArchitecture.ToString().ToLower();
+        // Use the same architecture as library rule selection (including x64
+        // processes running under emulation on an arm64 operating system).
+        string arch = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
         string nativesDirectory = Path.Combine(basePath, "versions", versionId, "natives");
         Directory.CreateDirectory(nativesDirectory);
         foreach (var subdirectory in new[] { "java", "jna", "lwjgl", "netty" })

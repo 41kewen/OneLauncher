@@ -34,6 +34,7 @@ internal sealed class GameDataTagCreatedMessage { }
 
 internal partial class GameDataItem : BaseViewModel
 {
+    private readonly UnitedCore _unitedCore;
     public GameData data { get; set; }
     public Bitmap Icon { get; set; }
     public bool IsDefault { get; set; }
@@ -57,13 +58,15 @@ internal partial class GameDataItem : BaseViewModel
             };
         }
         _=Game.EasyGameLauncher(
+            _unitedCore,
             gameData,
             useDebugMode: IsUseDebugModLaunch,
             serverInfo: quicklyPlayServerInfo
             );
     }
-    public GameDataItem(GameData gameData,GameDataManager gameDataManager)
+    public GameDataItem(GameData gameData, GameDataManager gameDataManager, UnitedCore unitedCore)
     {
+        _unitedCore = unitedCore;
         data = gameData;
 
         // 检查自己是否是其对应版本的默认实例
@@ -124,6 +127,7 @@ internal partial class GameDataTagItem : BaseViewModel
 internal partial class GameDataPageViewModel : BaseViewModel
 {
     private readonly GameDataManager _gameDataManager;
+    private readonly UnitedCore _unitedCore;
     private readonly EditGameDataPaneViewModelFactory _editVMFactory;
     private readonly NewGameDataPaneViewModelFactory _newGameDataPaneViewModelFactory;
     [ObservableProperty] public List<GameDataItem> gameDataList = new();
@@ -135,7 +139,7 @@ internal partial class GameDataPageViewModel : BaseViewModel
     {
         Dispatcher.UIThread.Post(() => 
         {
-            GameDataList = _gameDataManager.AllGameData.Select(x => new GameDataItem(x, _gameDataManager)).ToList();
+            GameDataList = _gameDataManager.AllGameData.Select(x => new GameDataItem(x, _gameDataManager, _unitedCore)).ToList();
             AvailableTags = BuildAvailableTags();
         });
     }
@@ -153,6 +157,7 @@ internal partial class GameDataPageViewModel : BaseViewModel
     
     public GameDataPageViewModel(
         GameDataManager gameDataManager,
+        UnitedCore unitedCore,
         EditGameDataPaneViewModelFactory editGameDataPaneViewModelFactory,
         NewGameDataPaneViewModelFactory newGameDataPaneViewModelFactory
         )
@@ -160,6 +165,7 @@ internal partial class GameDataPageViewModel : BaseViewModel
         this._newGameDataPaneViewModelFactory = newGameDataPaneViewModelFactory;
         this._editVMFactory = editGameDataPaneViewModelFactory;
         this._gameDataManager = gameDataManager;
+        _unitedCore = unitedCore;
         AvailableTags = BuildAvailableTags();
 #if DEBUG
         // 造密码的Avalonia设计器天天报错
@@ -191,8 +197,8 @@ internal partial class GameDataPageViewModel : BaseViewModel
             // 将创建好的 GameData 包装成 GameDataItem 并添加到列表
             GameDataList = new List<GameDataItem>()
             {
-                new GameDataItem(gameData1,_gameDataManager),
-                new GameDataItem(gameData2,_gameDataManager)
+                new GameDataItem(gameData1,_gameDataManager, _unitedCore),
+                new GameDataItem(gameData2,_gameDataManager, _unitedCore)
             };
             AvailableTags = new ObservableCollection<GameDataTagItem>()
             {
