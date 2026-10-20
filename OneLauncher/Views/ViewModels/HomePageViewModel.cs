@@ -123,6 +123,7 @@ internal partial class HomePageViewModel : BaseViewModel
     [RelayCommand]
     public async Task ImportVersionByPCL2()
     {
+        TaskInstance? task = null;
         try
         {
             var topLevel = TopLevel.GetTopLevel(MainWindow.mainwindow);
@@ -145,25 +146,44 @@ internal partial class HomePageViewModel : BaseViewModel
                     WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("这不是有效的PCL版本文件夹", NotificationType.Warning, "导入失败"));
                     return;
                 }
-                WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("正在导入。。。（这可能需要较长时间）"));
-                await new PCL2Importer(new Progress<(DownProgress Title, int AllFiles, int DownedFiles, string DowingFileName)>(p =>
+                task = _unitedCore.TaskManager.CreateTask("PCL2版本导入");
+                var token = task.Token!.Token;
+                task.SetProgress("正在分析PCL2实例", 0);
+                OpenTaskCenter();
+                var progress = new Progress<(DownProgress Title, int AllFiles, int DownedFiles, string DowingFileName)>(p =>
                 {
-                    // 避免安装器进度报告过于频繁
-                    if (p.Title == DownProgress.DownAndInstModFiles)
+                    // 下载器也会报告 Done；只有整个导入返回后才能标记完成。
+                    if (task.Status != TaskInfoStatus.Running || p.Title == DownProgress.Done)
                         return;
-                    WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage(
-                        $"[{p.DownedFiles}/{p.AllFiles}] 操作:{p.DowingFileName}",
-                        NotificationType.Information,
-                        p.Title switch
-                        {
-                            DownProgress.Meta => "正在分析PCL2实例",
-                            DownProgress.Done => "导入完成",
-                            _ => "操作中"
-                        } + " - 正在导入"));
-                    Debug.WriteLine($"Titli:{p.Title}\nAll:{p.AllFiles},Down:{p.DownedFiles}\nOutput:\n{p.DowingFileName}");
-                })).ImportAsync(path);
-                WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("导入完成！", NotificationType.Success));
+                    var stage = p.Title switch
+                    {
+                        DownProgress.Meta => "分析/迁移PCL2实例",
+                        DownProgress.DownMain => "下载游戏主文件",
+                        DownProgress.DownLibs => "下载依赖库",
+                        DownProgress.DownAndInstModFiles => "安装模组加载器",
+                        DownProgress.DownAssets => "下载资源文件",
+                        DownProgress.DownLog4j2 => "下载日志配置",
+                        DownProgress.Verify => "校验文件",
+                        _ => "正在导入"
+                    };
+                    double percentage = p.AllFiles > 0
+                        ? Math.Clamp((double)p.DownedFiles / p.AllFiles * 100, 0, 100) : 0;
+                    task.SetProgress($"{stage} [{p.DownedFiles}/{p.AllFiles}] {p.DowingFileName}", percentage);
+                });
+                // 本地文件迁移包含同步复制，放到后台以保持任务中心可响应取消。
+                await Task.Run(() => new PCL2Importer(progress, token).ImportAsync(path), token);
+                token.ThrowIfCancellationRequested();
+                task.SetProgress("导入完成", 100);
+                task.SetDone();
             }
+        }
+        catch (OperationCanceledException) when (task?.Token?.IsCancellationRequested == true)
+        {
+            task.Cancel();
+        }
+        catch (Exception ex) when (task != null)
+        {
+            task.SetFailed(ex);
         }
         catch (OlanException ex)
         {
