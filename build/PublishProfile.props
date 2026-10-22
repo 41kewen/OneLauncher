@@ -1,9 +1,0 @@
-<Project>
-  <!-- Shared symbol settings only. Keep VS discovery and publish properties in
-       each pubxml so the IDE can read them without following MSBuild imports. -->
-  <PropertyGroup>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>portable</DebugType>
-    <StripSymbols>false</StripSymbols>
-  </PropertyGroup>
-</Project>
