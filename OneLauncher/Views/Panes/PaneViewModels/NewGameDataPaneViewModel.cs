@@ -19,7 +19,7 @@ using System.Threading.Tasks;
 namespace OneLauncher.Views.Panes.PaneViewModels;
 internal partial class NewGameDataPaneViewModel : BaseViewModel
 {
-    private readonly DBManager _configManager;
+    private readonly VersionListManager _versionListManager;
     private readonly AccountManager _accountManager;
     private readonly GameDataManager _gameDataManager;
     private readonly Action _onCloseCallback;
@@ -32,20 +32,18 @@ internal partial class NewGameDataPaneViewModel : BaseViewModel
     [ObservableProperty] private UserModel selectedUser;
 
     public NewGameDataPaneViewModel(
-        DBManager configManager,
+        VersionListManager versionListManager,
         AccountManager accountManager,
         GameDataManager gameDataManager,
         Action onCloseCallback,
         UserVersion? defaultBasicVerions = null)
     {
-        if(defaultBasicVerions != null)
-            selectedBaseVersion = defaultBasicVerions;
-        this._configManager = configManager;
+        _versionListManager = versionListManager;
         this._gameDataManager = gameDataManager;
         this._accountManager = accountManager;
         _onCloseCallback = onCloseCallback;
         // 加载所需数据
-        AvailableBaseVersions = _configManager.Data.VersionList;
+        AvailableBaseVersions = _versionListManager.GetVersions();
         AvailableUsers = _accountManager.GetAllUsers().ToList();
         SelectedUser = _accountManager.GetDefaultUser() ?? AvailableUsers.FirstOrDefault() ??
             new UserModel(Guid.NewGuid(),"GameDataDefault",Guid.NewGuid());
@@ -53,6 +51,10 @@ internal partial class NewGameDataPaneViewModel : BaseViewModel
         // 默认情况下，模组加载器列表为空，等待用户选择基础版本
         AvailableModLoaders = new List<ModEnum> { ModEnum.none };
         SelectedModLoader = ModEnum.none;
+        // 通过属性设置，才能初始化指定版本的加载器选项和实例名称。
+        if (defaultBasicVerions != null)
+            SelectedBaseVersion = AvailableBaseVersions.FirstOrDefault(
+                version => version.VersionID == defaultBasicVerions.VersionID);
     }
     partial void OnSelectedBaseVersionChanged(UserVersion value)
     {

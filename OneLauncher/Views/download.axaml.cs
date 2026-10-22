@@ -3,7 +3,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using OneLauncher.Codes;
-using OneLauncher.Core.Downloader;
+using OneLauncher.Core.DefaultComponent.Downloader;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Helper;
 using OneLauncher.Core.Minecraft;

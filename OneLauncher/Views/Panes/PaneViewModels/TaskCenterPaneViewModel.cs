@@ -6,19 +6,18 @@ using OneLauncher.Core.Global;
 using OneLauncher.Views.ViewModels;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace OneLauncher.Views.Panes.PaneViewModels;
 
-internal sealed partial class TaskCenterPaneViewModel : BaseViewModel
+internal sealed partial class TaskCenterPaneViewModel : BaseViewModel, IDisposable
 {
     private readonly TaskManager _taskManager;
     private readonly Action _onCloseCallback;
-    private readonly DispatcherTimer _refreshTimer;
-    private readonly Dictionary<TaskInstance, TaskInstanceItemViewModel> _taskItems = new();
+    private volatile bool _disposed;
 
-    public ObservableCollection<TaskInstanceItemViewModel> Tasks { get; } = new();
+    [ObservableProperty]
+    private List<TaskInstanceItemViewModel> tasks = new();
 
     [ObservableProperty]
     private bool hasTasks;
@@ -27,54 +26,48 @@ internal sealed partial class TaskCenterPaneViewModel : BaseViewModel
     {
         _taskManager = unitedCore.TaskManager;
         _onCloseCallback = onCloseCallback;
-        _refreshTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(500)
-        };
-        _refreshTimer.Tick += (_, _) => RefreshTasks();
-
-        RefreshTasks();
-        _refreshTimer.Start();
+        _taskManager.OnTaskCreate += OnTaskCreate;
+        RefList();
     }
 
-    private void RefreshTasks()
+    private void OnTaskCreate()
     {
-        var snapshot = _taskManager.TaskQueue.ToArray();
-        var currentTasks = new HashSet<TaskInstance>();
+        if (Dispatcher.UIThread.CheckAccess())
+            RefList();
+        else
+            Dispatcher.UIThread.Post(RefList);
+    }
 
-        foreach (var task in snapshot)
-        {
-            currentTasks.Add(task);
-            if (!_taskItems.TryGetValue(task, out var item))
-            {
-                item = new TaskInstanceItemViewModel(task);
-                _taskItems.Add(task, item);
-                // 最新创建的任务始终显示在顶部，避免用户向下滚动查找正在运行的任务。
-                Tasks.Insert(0, item);
-            }
+    private void RefList()
+    {
+        if (_disposed)
+            return;
 
-            item.RefreshStatus();
-        }
-
-        for (var index = Tasks.Count - 1; index >= 0; index--)
-        {
-            var item = Tasks[index];
-            if (currentTasks.Contains(item.Task))
-                continue;
-
-            Tasks.RemoveAt(index);
-            _taskItems.Remove(item.Task);
+        foreach (var item in Tasks)
             item.Dispose();
-        }
 
+        // 使用完整队列快照重建列表，最新创建的任务显示在顶部。
+        Tasks = _taskManager.TaskQueue.ToArray().Reverse()
+            .Select(task => new TaskInstanceItemViewModel(task)).ToList();
         HasTasks = Tasks.Count > 0;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+        _taskManager.OnTaskCreate -= OnTaskCreate;
+        foreach (var item in Tasks)
+            item.Dispose();
     }
 
     [RelayCommand]
     private void ClosePane() => _onCloseCallback();
 }
 
-internal sealed partial class TaskInstanceItemViewModel : ObservableObject
+internal sealed partial class TaskInstanceItemViewModel : ObservableObject, IDisposable
 {
     private static readonly IBrush RunningBrush = new SolidColorBrush(Color.Parse("#FF007AFF"));
     private static readonly IBrush CanceledBrush = new SolidColorBrush(Color.Parse("#FF8A5A00"));
@@ -86,6 +79,7 @@ internal sealed partial class TaskInstanceItemViewModel : ObservableObject
     private static readonly IBrush FinishedSurfaceBrush = new SolidColorBrush(Color.Parse("#19107C10"));
 
     private readonly TaskInstance _task;
+    private volatile bool _disposed;
     private string _statusText = string.Empty;
     private string _currentText = string.Empty;
     private double _progress;
@@ -158,6 +152,9 @@ internal sealed partial class TaskInstanceItemViewModel : ObservableObject
 
     public void RefreshStatus()
     {
+        if (_disposed)
+            return;
+
         var status = _task.Status switch
         {
             TaskInfoStatus.Running => "运行中",
@@ -195,6 +192,7 @@ internal sealed partial class TaskInstanceItemViewModel : ObservableObject
 
     public void Dispose()
     {
+        _disposed = true;
         _task.ProgressChanged -= OnProgressChanged;
         _task.Finished -= OnFinished;
         _task.Failed -= OnFailed;

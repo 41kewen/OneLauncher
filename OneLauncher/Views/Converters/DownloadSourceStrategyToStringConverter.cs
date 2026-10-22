@@ -1,5 +1,5 @@
 ﻿using Avalonia.Data.Converters;
-using OneLauncher.Core.Downloader.DownloadMinecraftProviders;
+using OneLauncher.Core.DefaultComponent.Downloader.DownloadMinecraftProviders;
 using OneLauncher.Core.Helper.Models;
 using System;
 using System.Collections.Generic;

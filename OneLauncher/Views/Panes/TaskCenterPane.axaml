@@ -26,8 +26,8 @@
             </Border>
 
             <ScrollViewer IsVisible="{Binding HasTasks}">
-                <ItemsControl Classes="task-list" ItemsSource="{Binding Tasks}">
-                    <ItemsControl.ItemTemplate>
+                <ListBox Classes="card-list" ItemsSource="{Binding Tasks}">
+                    <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:TaskInstanceItemViewModel">
                             <Border Classes="pane-surface task-card">
                                 <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto"
@@ -105,8 +105,8 @@
                                 </Grid>
                             </Border>
                         </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </ScrollViewer>
         </Grid>
     </Grid>

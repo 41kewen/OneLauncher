@@ -1,6 +1,6 @@
 ﻿using OneLauncher.Core.Compatible.ImportPCL2Version;
-using OneLauncher.Core.Downloader;
-using OneLauncher.Core.Downloader.DownloadMinecraftProviders;
+using OneLauncher.Core.DefaultComponent.Downloader;
+using OneLauncher.Core.DefaultComponent.Downloader.DownloadMinecraftProviders;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper.Models;
@@ -21,9 +21,8 @@ public class PCL2Importer
     private readonly CancellationToken _token;
     private readonly Download _downloader = Init.Download;
 
-    private readonly GameDataManager _gameDataManager = Init.GameDataManager;
-    private readonly DBManager _configManager = Init.ConfigManager;
-    private readonly AccountManager _accountManager = Init.AccountManager;
+    private readonly GameDataManager _gameDataManager = UnitedCore.Core.GameDataManager;
+    private readonly AccountManager _accountManager = UnitedCore.Core.AccountManager;
 
     public PCL2Importer(IProgress<(DownProgress Title, int AllFiles, int DownedFiles, string DowingFileName)> progress, CancellationToken? token = null)
     {
@@ -75,14 +74,7 @@ public class PCL2Importer
         // 5. **核心改进：执行完整的下载和安装流程**
         //    现在文件已经就位，我们调用标准的下载/安装流程。
         //    它会自动跳过已存在的文件，并为Forge/NeoForge执行安装器。
-        var mcDownloader = new DownloadMinecraft(
-            downloadInfo,
-            _progress,
-            _token
-        );
-
-        await mcDownloader.MinecraftBasic( 
-        );
+        await UnitedCore.Core.VersionInstallerService.InstallNewVersion(downloadInfo, _progress, _token);
 
         // 6. 迁移用户数据 (Mods, Saves, etc.)
         _progress?.Report((DownProgress.Meta, 0, 0, "正在迁移用户数据..."));

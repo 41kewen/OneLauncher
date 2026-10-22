@@ -1,11 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using OneLauncher.Core.Downloader;
+using OneLauncher.Core.DefaultComponent.Downloader;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper.Models;
-using OneLauncher.Core.Net.Account.Microsoft;
-using OneLauncher.Core.Net.ConnectToolPower;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace OneLauncher.Core.Global;
@@ -32,13 +29,7 @@ public static partial class Init
     public static List<IDisposable> OnApplicationClosingReleaseSourcesList = new();
     // 必要的时候还是得耦合一下的，啥都得传递那他妈的写起来太难受了
     public static DBManager ConfigManger => ConfigManager;
-    public static GameDataManager GameDataManger => GameDataManager;
-    public static JavaManager JavaManger => JavaManager;
     internal static DBManager ConfigManager { get; private set; }
-    internal static AccountManager AccountManager { get; private set; }
-    internal static GameDataManager GameDataManager { get; private set; }
-    internal static MsalAuthenticator MsalAuthenticator { get; private set; }
-    internal static JavaManager JavaManager { get; private set; }
     internal static Download Download { get; private set; }
     public static async Task<IServiceCollection> Initialize(bool isCommandMode = false)
     {
@@ -55,36 +46,17 @@ public static partial class Init
             ConfigManager = configManger;
 
             InstalledPath = configManger.Data.OlanSettings.InstallPath ?? Path.Combine(BasePath,"installed");
-            GameRootPath = InstalledPath == null ? Path.Combine(BasePath, "installed", "minecraft") : Path.Combine(InstalledPath, "minecraft");
+            GameRootPath = Path.Combine(InstalledPath, "minecraft");
             Directory.CreateDirectory(InstalledPath);
             // 初始化系统信息
             SystemType = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? SystemType.windows :
                          RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? SystemType.linux :
                          RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? SystemType.osx : SystemType.linux;
 
-            var accountManger = new AccountManager(Path.Combine(BasePath,"playerdata","account.json"));
-            await accountManger.InitializeAsync();
-            services.AddSingleton<AccountManager>(accountManger);
-            AccountManager = accountManger; 
-
-            var gameDataManger = new GameDataManager(Path.Combine(GameRootPath, "instance", "instance.json"));
-            await gameDataManger.InitializeAsync();
-            services.AddSingleton<GameDataManager>(gameDataManger);
-            GameDataManager = gameDataManger;
-
             var downloadTool = new Download();
             services.AddSingleton<Download>(downloadTool);
             OnApplicationClosingReleaseSourcesList.Add(downloadTool);
             Download = downloadTool;
-
-            var msrl = await MsalAuthenticator.CreateAsync(ApplicationID);
-            services.AddSingleton<MsalAuthenticator>(msrl);
-            OnApplicationClosingReleaseSourcesList.Add(msrl);
-            MsalAuthenticator = msrl;
-
-            var javaManager = new JavaManager();
-            services.AddSingleton<JavaManager>(javaManager);
-            JavaManager = javaManager;
 
             var unitedCore = await UnitedCore.Initialize();
             services.AddSingleton<UnitedCore>(unitedCore);

@@ -9,8 +9,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneLauncher.Desktop", "OneL
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneLauncher.Core", "OneLauncher.Core\OneLauncher.Core.csproj", "{7844EC8C-5320-4E0B-84FA-BC6F89A4AD9B}"
 EndProject
-Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "OneLauncher.Core.Net", "OneLauncher.Core.Net\OneLauncher.Core.Net.shproj", "{69B1035D-AD5E-4603-84E2-526F1009610A}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleTest", "ConsoleTest\ConsoleTest.csproj", "{A0E36629-65EA-45D2-BD87-A932BB7C3AFC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OneLauncher.Console", "OneLauncher.Console\OneLauncher.Console.csproj", "{E001372A-C897-44BE-AF66-BAD9362CCFE4}"
@@ -133,17 +131,7 @@ Global
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{C8312AFE-7DAC-4F17-BDCA-60619B0E7FA9} = {EE15132C-A9C8-4305-8EFA-72F6170382A5}
-		{4DAE2DCA-78C2-4B62-A5B7-12D7B2EF722C} = {EE15132C-A9C8-4305-8EFA-72F6170382A5}
-		{31C85E4F-6188-40FA-A3AD-8E1280D940A0} = {EE15132C-A9C8-4305-8EFA-72F6170382A5}
-	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {84522990-1C5A-4180-9BDD-BDF56ACC2605}
-	EndGlobalSection
-	GlobalSection(SharedMSBuildProjectFiles) = preSolution
-		OneLauncher.Core.Net\OneLauncher.Core.Net.projitems*{69b1035d-ad5e-4603-84e2-526f1009610a}*SharedItemsImports = 13
-		OneLauncher.Core.Net\OneLauncher.Core.Net.projitems*{7844ec8c-5320-4e0b-84fa-bc6f89a4ad9b}*SharedItemsImports = 5
-		OneLauncher.Core.Net\OneLauncher.Core.Net.projitems*{a0e36629-65ea-45d2-bd87-a932bb7c3afc}*SharedItemsImports = 5
 	EndGlobalSection
 EndGlobal

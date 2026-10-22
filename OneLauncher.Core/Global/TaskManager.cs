@@ -72,11 +72,13 @@ public class TaskInstance
 public class TaskManager
 {
     public ConcurrentQueue<TaskInstance> TaskQueue { get; private set; } = new ConcurrentQueue<TaskInstance>();
+    public event Action? OnTaskCreate;
     public TaskInstance CreateTask(string name)
     {
         var cts = new CancellationTokenSource();
         var task = new TaskInstance(name, cts);
         TaskQueue.Enqueue(task);
+        OnTaskCreate?.Invoke();
         return task;
     }
 }

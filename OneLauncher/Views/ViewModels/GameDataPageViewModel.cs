@@ -8,12 +8,12 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using OneLauncher.Codes;
-using OneLauncher.Core.Downloader.DownloadMinecraftProviders;
+using OneLauncher.Core.DefaultComponent.Downloader.DownloadMinecraftProviders;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper.Models;
 using OneLauncher.Core.Minecraft;
-using OneLauncher.Core.Mod.ModPack;
+using OneLauncher.Core.DefaultComponent.Mod.ModPack;
 using OneLauncher.Views.Panes;
 using OneLauncher.Views.Panes.PaneViewModels;
 using OneLauncher.Views.Panes.PaneViewModels.Factories;
@@ -156,7 +156,6 @@ internal partial class GameDataPageViewModel : BaseViewModel
     }
     
     public GameDataPageViewModel(
-        GameDataManager gameDataManager,
         UnitedCore unitedCore,
         EditGameDataPaneViewModelFactory editGameDataPaneViewModelFactory,
         NewGameDataPaneViewModelFactory newGameDataPaneViewModelFactory
@@ -164,7 +163,7 @@ internal partial class GameDataPageViewModel : BaseViewModel
     {
         this._newGameDataPaneViewModelFactory = newGameDataPaneViewModelFactory;
         this._editVMFactory = editGameDataPaneViewModelFactory;
-        this._gameDataManager = gameDataManager;
+        this._gameDataManager = unitedCore.GameDataManager;
         _unitedCore = unitedCore;
         AvailableTags = BuildAvailableTags();
 #if DEBUG

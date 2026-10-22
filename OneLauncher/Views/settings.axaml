@@ -5,7 +5,7 @@
              mc:Ignorable="d" d:DesignWidth="818" d:DesignHeight="1000"
 			 xmlns:vm="using:OneLauncher.Views.ViewModels"
 			 xmlns:controls="using:OneLauncher.Views.Controls"
-			 xmlns:downmc="using:OneLauncher.Core.Downloader.DownloadMinecraftProviders"
+			 xmlns:downmc="using:OneLauncher.Core.DefaultComponent.Downloader.DownloadMinecraftProviders"
 			 x:DataType="vm:SettingsPageViewModel"
 			 x:CompileBindings="True"
              x:Class="OneLauncher.Views.settings">
@@ -14,8 +14,12 @@
   <ScrollViewer>
 	  <StackPanel Margin="40,28" Spacing="28">
 		  <TextBlock Classes="page-title" Text="设置"/>
+		  <ComboBox x:Name="SettingsCategoryComboBox" Width="220" HorizontalAlignment="Left"
+					ItemsSource="{Binding SettingsCategories}"
+					SelectedItem="{Binding SelectedSettingsCategory, Mode=TwoWay}"
+					AutomationProperties.Name="筛选设置板块"/>
 		  <!-- UI 选项 -->
-		  <StackPanel Classes="settings-section">
+		  <StackPanel Classes="settings-section" IsVisible="{Binding IsInterfaceSectionVisible}">
 			  <TextBlock Classes="section-title" Text="界面"/>
 			  <Separator Classes="section-divider"/>
 			  <StackPanel Margin="0,6,0,0">
@@ -25,27 +29,34 @@
 								 Maximum="30"/>
 			  </StackPanel>
 			  <StackPanel Margin="0,16,0,0">
-				  <TextBlock Text="左侧导航页面"/>
-				  <ToggleSwitch IsChecked="{Binding IsServerPageVisible}" Margin="0,8,0,0">
-					  <ToggleSwitch.OnContent>
-						  <TextBlock Text="显示服务器收藏"/>
-					  </ToggleSwitch.OnContent>
-					  <ToggleSwitch.OffContent>
-						  <TextBlock Text="隐藏服务器收藏"/>
-					  </ToggleSwitch.OffContent>
-				  </ToggleSwitch>
-				  <ToggleSwitch IsChecked="{Binding IsVersionPageVisible}" Margin="0,8,0,0">
-					  <ToggleSwitch.OnContent>
-						  <TextBlock Text="显示版本管理"/>
-					  </ToggleSwitch.OnContent>
-					  <ToggleSwitch.OffContent>
-						  <TextBlock Text="隐藏版本管理"/>
-					  </ToggleSwitch.OffContent>
-				  </ToggleSwitch>
+				  <Button x:Name="NavigationVisibilityButton" Classes="item-action"
+						  Content="控制左侧导航栏页面" HorizontalAlignment="Left">
+					  <Button.Flyout>
+						  <controls:SettingsFlyout Placement="BottomEdgeAlignedLeft"
+											   IsEditing="{Binding IsNavigationEditing, Mode=TwoWay}"
+											   IsBusy="{Binding IsSavingNavigation}">
+							  <Grid RowDefinitions="Auto,Auto,*,Auto" Width="270" RowSpacing="12">
+								  <TextBlock Grid.Row="0" Classes="section-title" Text="左侧导航栏页面"/>
+								  <TextBlock Grid.Row="1" Text="主页和设置始终显示" TextWrapping="Wrap"/>
+								  <ScrollViewer Grid.Row="2" MaxHeight="260">
+									  <ItemsControl ItemsSource="{Binding NavigationItems}" IsEnabled="{Binding !IsSavingNavigation}">
+										  <ItemsControl.ItemTemplate>
+											  <DataTemplate x:DataType="vm:NavigationVisibilityItem">
+												  <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsVisible, Mode=TwoWay}"/>
+											  </DataTemplate>
+										  </ItemsControl.ItemTemplate>
+									  </ItemsControl>
+								  </ScrollViewer>
+								  <Button Grid.Row="3" Classes="toolbar-action" Content="保存并应用"
+										  HorizontalAlignment="Stretch" Command="{Binding SaveNavigationCommand}"/>
+							  </Grid>
+						  </controls:SettingsFlyout>
+					  </Button.Flyout>
+				  </Button>
 			  </StackPanel>
 		  </StackPanel>
 		  <!-- 游戏启动选项 -->
-		  <StackPanel Classes="settings-section">
+		  <StackPanel Classes="settings-section" IsVisible="{Binding IsGameLaunchSectionVisible}">
 			  <TextBlock Classes="section-title" Text="游戏启动"/>
 			  <Separator Classes="section-divider"/>
 			  <StackPanel Margin="0,6,0,0">
@@ -59,7 +70,7 @@
 			  </StackPanel>
 		  </StackPanel>
 		  <!-- 下载选项 -->
-		  <StackPanel Classes="settings-section">
+		  <StackPanel Classes="settings-section" IsVisible="{Binding IsDownloadSectionVisible}">
 			  <TextBlock Classes="section-title" Text="下载"/>
 			  <Separator Classes="section-divider"/>
 			  <StackPanel Margin="0,6,0,0">
@@ -89,7 +100,7 @@
 			  </StackPanel>
 		  </StackPanel>
 		  <!-- 运行环境 -->
-		  <StackPanel Classes="settings-section">
+		  <StackPanel Classes="settings-section" IsVisible="{Binding IsRuntimeSectionVisible}">
 			  <TextBlock Classes="section-title" Text="运行环境"/>
 			  <Separator Classes="section-divider"/>
 			  <StackPanel Margin="0,6,0,0">

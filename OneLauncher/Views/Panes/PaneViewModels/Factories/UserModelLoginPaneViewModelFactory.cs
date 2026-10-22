@@ -1,5 +1,6 @@
-﻿using OneLauncher.Core.Global.ModelDataMangers;
-using OneLauncher.Core.Net.Account.Microsoft;
+﻿using OneLauncher.Core.DefaultComponent.Account.Microsoft;
+using OneLauncher.Core.Global.ModelDataMangers;
+using OneLauncher.Core.Global;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,10 +13,10 @@ internal class UserModelLoginPaneViewModelFactory
 {
     private readonly MsalAuthenticator _msaManager;
     private readonly AccountManager _accountManager;
-    public UserModelLoginPaneViewModelFactory(MsalAuthenticator msaManager, AccountManager accountManager)
+    public UserModelLoginPaneViewModelFactory(UnitedCore unitedCore)
     {
-        _msaManager = msaManager;
-        _accountManager = accountManager;
+        _msaManager = unitedCore.MsalAuthenticator;
+        _accountManager = unitedCore.AccountManager;
     }
     public UserModelLoginPaneViewModel Create(Action onCloseCallback)
     {

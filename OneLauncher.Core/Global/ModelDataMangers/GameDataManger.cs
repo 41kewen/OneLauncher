@@ -111,7 +111,7 @@ public class GameDataManager : BasicDataManager<GameDataRoot>
             name: gameDataName,
             versionId: userVersion.VersionID,
             loader: userVersion.modType.ToModEnum(),
-            userModel: Init.AccountManager.GetDefaultUser().UserID
+            userModel: UnitedCore.Core.AccountManager.GetDefaultUser().UserID
         );
 
         // 添加并设为默认
@@ -205,22 +205,19 @@ public class GameDataManager : BasicDataManager<GameDataRoot>
     /// <returns></returns>
     public GameData? GetDefaultInstance(string? versionId = null)
     {
-        string? defaultInstanceId;
-        if (versionId == null && Data.Instances.Count > 0)
+        if (versionId != null)
         {
-            // 如果没有指定版本ID，获取最高的版本的默认实例
-            var maxVersion = Data.DefaultInstanceMap.Keys.Select(x => new Version(x)).OrderByDescending(v => v).FirstOrDefault()!.ToString();
-            defaultInstanceId = Data.DefaultInstanceMap.GetValueOrDefault(maxVersion);
-        }
-        else
-        {
-            defaultInstanceId = Data.DefaultInstanceMap.GetValueOrDefault(versionId);
+            var instanceId = Data.DefaultInstanceMap.GetValueOrDefault(versionId);
+            return instanceId == null ? null : Data.Instances.GetValueOrDefault(instanceId);
         }
 
-        if (defaultInstanceId == null)
-            return null;
-        return
-            Data.Instances.GetValueOrDefault(defaultInstanceId); 
+        // 空实例、尚未指定默认实例及已失效的映射都应返回 null。
+        // 自定义版本 ID 可能不是 System.Version，仍允许作为默认实例使用。
+        return Data.DefaultInstanceMap
+            .Where(entry => Data.Instances.ContainsKey(entry.Value))
+            .OrderByDescending(entry => Version.TryParse(entry.Key, out var version) ? version : null)
+            .Select(entry => Data.Instances[entry.Value])
+            .FirstOrDefault();
     }
     public Task AddGameDataAsync(GameData newData)
     {

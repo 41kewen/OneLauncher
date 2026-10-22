@@ -45,7 +45,7 @@ public class GameData
         Name = name;
         VersionId = versionId;
         ModLoader = loader;
-        DefaultUserModelID = userModel ?? Init.AccountManager.GetDefaultUser().UserID;
+        DefaultUserModelID = userModel ?? UnitedCore.Core.AccountManager.GetDefaultUser().UserID;
         CreationTime = DateTime.Now;
         InstanceId = Guid.NewGuid().ToString()[..8]; // 避免路径过长
     }

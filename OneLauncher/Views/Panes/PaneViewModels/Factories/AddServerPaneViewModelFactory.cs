@@ -1,4 +1,5 @@
 using OneLauncher.Core.Global.ModelDataMangers;
+using OneLauncher.Core.Global;
 using System;
 
 namespace OneLauncher.Views.Panes.PaneViewModels.Factories;
@@ -10,10 +11,10 @@ internal sealed class AddServerPaneViewModelFactory
 
     public AddServerPaneViewModelFactory(
         DBManager dbManager,
-        GameDataManager gameDataManager)
+        UnitedCore unitedCore)
     {
         _dbManager = dbManager;
-        _gameDataManager = gameDataManager;
+        _gameDataManager = unitedCore.GameDataManager;
     }
 
     public AddServerPaneViewModel Create(

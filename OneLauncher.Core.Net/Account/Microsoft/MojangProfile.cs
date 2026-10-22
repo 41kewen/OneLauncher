@@ -172,7 +172,7 @@ public class MojangProfile : IDisposable
             }
             else
             {
-                sessionUrl = $"{Init.ConfigManger.Data.DefaultSettings.CrafatarUrl}{uuid}";
+                sessionUrl = $"{Init.ConfigManager.Data.DefaultSettings.CrafatarUrl}{uuid}";
                 skinImage = await httpClient.GetByteArrayAsync(sessionUrl);
                 await File.WriteAllBytesAsync(Path.Combine(outputPath, $"{uuid}.png"), skinImage);
             }

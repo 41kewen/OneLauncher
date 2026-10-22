@@ -111,7 +111,7 @@ public static class Tools
     }
     public static async Task<IAccount?> UseAccountIDToFind(string accountID)
     {
-        return (await Init.MsalAuthenticator.GetCachedAccounts())
+        return (await UnitedCore.Core.MsalAuthenticator.GetCachedAccounts())
             .FirstOrDefault(a => a.HomeAccountId.Identifier == accountID);
     }
     public static void OpenFolder(string folderPath)

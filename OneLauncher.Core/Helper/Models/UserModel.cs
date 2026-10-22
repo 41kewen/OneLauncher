@@ -1,6 +1,6 @@
-﻿using OneLauncher.Core.Global;
-using OneLauncher.Core.Net.Account.Microsoft;
-using OneLauncher.Core.Net.Account.Yggdrasil.ServiceProviders;
+﻿using OneLauncher.Core.DefaultComponent.Account.Microsoft;
+using OneLauncher.Core.Global;
+using OneLauncher.Core.DefaultComponent.Account.Yggdrasil.ServiceProviders;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -121,7 +121,7 @@ public class UserModel
                 // 缺少刷新所需的工具或信息，返回自身。
                 return this;
             }
-            var task = UnitedCore._TaskManager.CreateTask($"刷新 {this.Name} 账户令牌");
+            var task = UnitedCore.Core.TaskManager.CreateTask($"刷新 {this.Name} 账户令牌");
             if (UserType == AccountType.Msa)
             {
                 // 从认证器缓存中找到对应的微软账户
@@ -146,7 +146,7 @@ public class UserModel
                 // 如果刷新成功，返回那个全新的 UserModel并更改自身；如果失败（返回null），则返回当前的（已过期的）实例。
                 AccessToken = r.AccessToken;
                 AccessTokenExpiration = r.AccessTokenExpiration;
-                _ = Init.AccountManager.Save();
+                _ = UnitedCore.Core.AccountManager.Save();
                 return r;
             }
             else

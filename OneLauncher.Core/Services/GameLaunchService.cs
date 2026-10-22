@@ -1,5 +1,5 @@
+using OneLauncher.Core.DefaultComponent.Launcher;
 using OneLauncher.Core.Global;
-using OneLauncher.Core.Launcher;
 
 namespace OneLauncher.Core.Services;
 

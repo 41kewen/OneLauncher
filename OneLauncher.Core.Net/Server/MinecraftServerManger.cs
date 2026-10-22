@@ -10,8 +10,8 @@ using System.Runtime.InteropServices.Marshalling;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using OneLauncher.Core.Launcher;
 using OneLauncher.Core.Minecraft;
+using OneLauncher.Core.DefaultComponent.Launcher.Builders;
 
 namespace OneLauncher.Core.Net.Server;
 
@@ -53,7 +53,7 @@ public class MinecraftServerManger
             string versionPath = Path.Combine(Global.Init.GameRootPath, "versions", version);
             serverProcess.StartInfo = new ProcessStartInfo()
             {
-                FileName = Global.Init.JavaManger.GetJavaExecutablePath(java),
+                FileName = UnitedCore.Core.JavaManger.GetJavaExecutablePath(java),
                 Arguments = 
                 string.Join(" ",Global.Init.ConfigManger.Data.DefaultSettings.MinecraftJvmArguments.GetArguments(java,null)) + 
                             $" -jar {(Path.Combine(versionPath, "server.jar"))}",

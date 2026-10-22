@@ -5,11 +5,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using OneLauncher.Codes;
+using OneLauncher.Core.DefaultComponent.Account.Microsoft;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper;
 using OneLauncher.Core.Helper.Models;
-using OneLauncher.Core.Net.Account.Microsoft;
 using OneLauncher.Views.Panes;
 using OneLauncher.Views.Panes.PaneViewModels.Factories;
 using System;
@@ -35,8 +35,9 @@ internal partial class UserItem
 }
 internal partial class AccountPageViewModel : BaseViewModel
 {
-    private AccountManager _accountManager;
-    private MsalAuthenticator _msalAuthenticator;
+    private AccountManager _accountManager => _unitedCore.AccountManager;
+    private MsalAuthenticator _msalAuthenticator => _unitedCore.MsalAuthenticator;
+    private readonly UnitedCore _unitedCore;
     private UserModelLoginPaneViewModelFactory _userModelLoginPaneFactory;
     // 刷新
     public void RefList()
@@ -77,11 +78,13 @@ internal partial class AccountPageViewModel : BaseViewModel
             await OlanExceptionWorker.ForUnknowException(ex);
         }
     }
-    public AccountPageViewModel(AccountManager manager,MsalAuthenticator msalAuthenticator, UserModelLoginPaneViewModelFactory userModelLoginPaneFactory)
+    public AccountPageViewModel(
+        UnitedCore unitedCore,
+        UserModelLoginPaneViewModelFactory userModelLoginPaneFactory
+        )
     {
+        this._unitedCore = unitedCore;
         this._userModelLoginPaneFactory = userModelLoginPaneFactory;
-        this._accountManager = manager;
-        this._msalAuthenticator = msalAuthenticator;
 #if DEBUG
         if (Design.IsDesignMode)
             UserModelList = new List<UserItem>()

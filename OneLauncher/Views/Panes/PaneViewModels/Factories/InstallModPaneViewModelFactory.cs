@@ -10,9 +10,9 @@ internal class InstallModPaneViewModelFactory
     private readonly GameDataManager _gameDataManager;
     private readonly UnitedCore _unitedCore;
 
-    public InstallModPaneViewModelFactory(GameDataManager gameDataManager, UnitedCore unitedCore)
+    public InstallModPaneViewModelFactory(UnitedCore unitedCore)
     {
-        _gameDataManager = gameDataManager;
+        _gameDataManager = unitedCore.GameDataManager;
         _unitedCore = unitedCore;
     }
 

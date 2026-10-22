@@ -1,7 +1,7 @@
 ﻿using Avalonia.Platform;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Global;
-using OneLauncher.Core.Net.ConnectToolPower;
+using OneLauncher.Core.DefaultComponent.ConnectToolPower;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,9 +14,9 @@ internal class PowerPlayPaneViewModelFactory
 {
     private readonly GameDataManager _gameDataManager;
     private readonly UnitedCore _unitedCore;
-    public PowerPlayPaneViewModelFactory(GameDataManager gameDataManager, UnitedCore unitedCore)
+    public PowerPlayPaneViewModelFactory(UnitedCore unitedCore)
     {
-        _gameDataManager = gameDataManager;
+        _gameDataManager = unitedCore.GameDataManager;
         _unitedCore = unitedCore;
     }
     public async Task<PowerPlayPaneViewModel> CreateAsync(Action? onCloseCallback = null)

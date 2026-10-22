@@ -8,14 +8,14 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using OneLauncher.Codes;
 using OneLauncher.Core.Compatible.ImportPCL2Version;
-using OneLauncher.Core.Downloader;
-using OneLauncher.Core.Downloader.DownloadMinecraftProviders;
+using OneLauncher.Core.DefaultComponent.Downloader;
+using OneLauncher.Core.DefaultComponent.Downloader.DownloadMinecraftProviders;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper;
 using OneLauncher.Core.Helper.ImportPCL2Version;
 using OneLauncher.Core.Helper.Models;
-using OneLauncher.Core.Net.Server;
+using OneLauncher.Core.DefaultComponent.Server;
 using OneLauncher.Views.Panes;
 using OneLauncher.Views.Panes.PaneViewModels;
 using OneLauncher.Views.Panes.PaneViewModels.Factories;
@@ -32,7 +32,6 @@ internal partial class VersionItem : BaseViewModel
 {
     private readonly UnitedCore _unitedCore;
     /// <param Name="a">UserVersion实例</param>
-    /// <param Name="IndexInInit">UserVsersion实例在整个Init.ConfigManager.config.VersionList中的索引值</param>
     public VersionItem(UserVersion a, UnitedCore unitedCore)
     {
         _unitedCore = unitedCore;
@@ -63,16 +62,16 @@ internal partial class VersionItem : BaseViewModel
 }
 internal partial class VersionPageViewModel : BaseViewModel
 {
-    private readonly DBManager _dBManager;
+    private readonly VersionListManager _versionListManager;
     private readonly UnitedCore _unitedCore;
     private readonly NewGameDataPaneViewModelFactory _newGameDataPaneViewModelFactory;
     private void RefList()
     {
-        VersionList = _dBManager.Data.VersionList.Select(x => new VersionItem(x, _unitedCore)).ToList();
+        VersionList = _versionListManager.GetVersions().Select(x => new VersionItem(x, _unitedCore)).ToList();
     }
-    public VersionPageViewModel(DBManager dBManager, UnitedCore unitedCore, NewGameDataPaneViewModelFactory newGameDataPaneViewModelFactory)
+    public VersionPageViewModel(UnitedCore unitedCore, NewGameDataPaneViewModelFactory newGameDataPaneViewModelFactory)
     {
-        this._dBManager = dBManager;
+        _versionListManager = unitedCore.VersionListManager;
         _unitedCore = unitedCore;
         _newGameDataPaneViewModelFactory = newGameDataPaneViewModelFactory;
 #if DEBUG
@@ -91,23 +90,8 @@ internal partial class VersionPageViewModel : BaseViewModel
         else
 #endif
         {
-            try
-            {
-                RefList();
-                _dBManager.OnDataChanged += () => Dispatcher.UIThread.Post(() => RefList());
-            }
-            catch (NullReferenceException ex)
-            {
-                throw new OlanException(
-                    "内部异常",
-                    "配置文件特定部分版本部分为空，这可能是新版和旧版配置文件不兼容导致的",
-                    OlanExceptionAction.FatalError,
-                    ex,
-                   () => {
-                       File.Delete(Path.Combine(Init.BasePath, "config.json"));
-                       Init.Initialize();
-                   });
-            }
+            RefList();
+            _versionListManager.OnDataChanged += OnVersionDataChanged;
         } 
     }
     [ObservableProperty]
@@ -117,7 +101,7 @@ internal partial class VersionPageViewModel : BaseViewModel
     [ObservableProperty]
     public bool _isPaneShow;
     [RelayCommand]
-    public void Sorting(SortingType type)
+    public async Task Sorting(SortingType type)
     {
         List<VersionItem> orderedList = type switch
         {
@@ -128,10 +112,18 @@ internal partial class VersionPageViewModel : BaseViewModel
             _ => VersionList // 默认不排序
         };
 
-        VersionList = orderedList; 
-        _dBManager.Data.VersionList = VersionList.Select(x => x.versionExp).ToList();
-        _=_dBManager.Save();
+        try
+        {
+            await _versionListManager.ReplaceOrderAsync(orderedList.Select(x => x.versionExp).ToList());
+            RefList();
+        }
+        catch (OlanException ex)
+        {
+            await OlanExceptionWorker.ForOlanException(ex);
+        }
     }
+
+    private void OnVersionDataChanged() => Dispatcher.UIThread.Post(RefList);
     [RelayCommand]
     public async Task OpenServer(UserVersion versionExp)
     {

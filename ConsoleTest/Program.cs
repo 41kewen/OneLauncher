@@ -1,8 +1,10 @@
-﻿using OneLauncher.Core.Downloader.DownloadMinecraftProviders;
+﻿using OneLauncher.Core.DefaultComponent.Downloader.DownloadMinecraftProviders;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Helper.Models;
-await Init.Initialize(); // 原本的代码还是需要执行一下的
-var core = await UnitedCore.Initialize();
+using Microsoft.Extensions.DependencyInjection;
+var services = await Init.Initialize();
+using var serviceProvider = services.BuildServiceProvider();
+var core = serviceProvider.GetRequiredService<UnitedCore>();
 var task = core.TaskManager.CreateTask("下载MC");
 _=Task.Run(async () =>
 {

@@ -1,0 +1,12 @@
+<Project>
+  <!-- Shared release-size settings. Keep VS discovery and publish properties in
+       each pubxml so the IDE can read them without following MSBuild imports. -->
+  <PropertyGroup>
+    <DebugSymbols>false</DebugSymbols>
+    <DebugType>none</DebugType>
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+    <StripSymbols>true</StripSymbols>
+    <PublishDocumentationFiles>false</PublishDocumentationFiles>
+    <TrimMode>full</TrimMode>
+  </PropertyGroup>
+</Project>

@@ -7,13 +7,13 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using OneLauncher.Codes;
-using OneLauncher.Core.Downloader.DownloadMinecraftProviders;
+using OneLauncher.Core.DefaultComponent.Mod.ModPack;
+using OneLauncher.Core.DefaultComponent.Downloader.DownloadMinecraftProviders;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper.ImportPCL2Version;
 using OneLauncher.Core.Helper.Models;
 using OneLauncher.Core.Minecraft;
-using OneLauncher.Core.Mod.ModPack;
 using OneLauncher.Views.Panes;
 using OneLauncher.Views.Panes.PaneViewModels;
 using OneLauncher.Views.Panes.PaneViewModels.Factories;
@@ -30,13 +30,12 @@ namespace OneLauncher.Views.ViewModels;
 
 internal partial class HomePageViewModel : BaseViewModel
 {
-    private readonly GameDataManager _gameDataManager;
-    private readonly DBManager _configManager;
+    private GameDataManager _gameDataManager => _unitedCore.GameDataManager;
+    private DBManager _configManager;
     private readonly UnitedCore _unitedCore;
     private readonly PowerPlayPaneViewModelFactory _mctVMFactory;
     private readonly TaskCenterPaneViewModelFactory _taskCenterVMFactory;
     private readonly INewReader _newsReader;
-    private TaskCenterPaneViewModel? _taskCenterPane;
 
     [ObservableProperty] private List<GameData> launchItems;
     [ObservableProperty] private GameData? selectedGameData = null;
@@ -48,7 +47,6 @@ internal partial class HomePageViewModel : BaseViewModel
     [ObservableProperty] private bool _isNewsLoading;
     [ObservableProperty] private MinecraftNew _currentNews;
     public HomePageViewModel(
-        GameDataManager gameDataManager,
         DBManager configManager,
         UnitedCore unitedCore,
         PowerPlayPaneViewModelFactory powerPlayPaneViewModelFactory,
@@ -56,7 +54,6 @@ internal partial class HomePageViewModel : BaseViewModel
         )
     {
         this._configManager = configManager;
-        this._gameDataManager = gameDataManager;
         this._unitedCore = unitedCore;
         this._mctVMFactory = powerPlayPaneViewModelFactory;
         this._taskCenterVMFactory = taskCenterPaneViewModelFactory;
@@ -103,9 +100,23 @@ internal partial class HomePageViewModel : BaseViewModel
     [RelayCommand]
     private void OpenTaskCenter()
     {
-        _taskCenterPane ??= _taskCenterVMFactory.Create(() => IsPaneShow = false);
-        PaneContent = new TaskCenterPane { DataContext = _taskCenterPane };
+        PaneContent = new TaskCenterPane
+        {
+            DataContext = _taskCenterVMFactory.Create(() => IsPaneShow = false)
+        };
         IsPaneShow = true;
+    }
+
+    partial void OnPaneContentChanging(UserControl value)
+    {
+        if (PaneContent?.DataContext is TaskCenterPaneViewModel taskCenter)
+            taskCenter.Dispose();
+    }
+
+    partial void OnIsPaneShowChanged(bool value)
+    {
+        if (!value && PaneContent?.DataContext is TaskCenterPaneViewModel taskCenter)
+            taskCenter.Dispose();
     }
     [RelayCommand]
     public void Launch()

@@ -12,16 +12,17 @@ namespace OneLauncher.Core.Global.ModelDataMangers;
 
 public abstract class BasicDataManager<T> where T : class, new()
 {
-    public T Data { get; protected set; }
+    public T Data { get; protected set; } = null!;
     public event Action? OnDataChanged; 
 
-    private readonly string _configPath;
+    protected string ConfigPath { get; }
+    protected virtual bool RequireValidDocument => false;
     private readonly JsonTypeInfo<T> _jsonTypeInfo;
     private readonly SemaphoreSlim _saveLock = new(1, 1); // 防止竞态
 
     protected BasicDataManager(string configPath)
     {
-        _configPath = configPath;
+        ConfigPath = Path.GetFullPath(configPath);
         _jsonTypeInfo = CreateJsonTypeInfo(new JsonSerializerOptions
         {
 #if DEBUG
@@ -32,59 +33,110 @@ public abstract class BasicDataManager<T> where T : class, new()
         });
     }
 
-    public async Task InitializeAsync()
+    public async Task InitializeAsync(T? initialData = null)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(_configPath));
+        Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
 
-        if (!File.Exists(_configPath))
+        if (!File.Exists(ConfigPath))
         {
-            Data = new T(); 
+            Data = initialData ?? new T();
+            ValidateData(Data);
             await Save(); 
         }
         else
         {
-            try
-            {
-                // 文件存在，尝试读取和解析。
-                await using var stream = File.OpenRead(_configPath);
-                // 防止空文件导致反序列化失败
-                if (stream.Length == 0)
-                {
-                    Data = new T();
-                }
-                else
-                {
-                    Data = await JsonSerializer.DeserializeAsync(stream, _jsonTypeInfo) ?? new T();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex);
-                throw new OlanException($"加载配置文件失败", $" {_configPath} 文件可能已损坏。{Environment.NewLine}{ex}", OlanExceptionAction.FatalError, ex);
-            }
+            Data = await ReadDataAsync();
         }
 
         // 调用各个子类的特殊初始化方法
         await PostInitialize();
     }
 
+    // Verify a committed migration before removing legacy data.
+    protected async Task<T> ReadDataAsync()
+    {
+        try
+        {
+            await using var stream = File.OpenRead(ConfigPath);
+            T value;
+            if (stream.Length == 0)
+            {
+                if (RequireValidDocument) throw new JsonException("配置文件为空。");
+                value = new T();
+            }
+            else
+            {
+                var deserialized = await JsonSerializer.DeserializeAsync(stream, _jsonTypeInfo);
+                if (deserialized == null && RequireValidDocument)
+                    throw new JsonException("配置文件不能为 null。");
+                value = deserialized ?? new T();
+            }
+            ValidateData(value);
+            return value;
+        }
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+        {
+            throw new OlanException("加载配置文件失败",
+                $"{ConfigPath} 文件无法读取或已损坏。{Environment.NewLine}{ex.Message}",
+                OlanExceptionAction.FatalError, ex);
+        }
+    }
+
+    protected virtual void ValidateData(T data) { }
+
     protected virtual Task PostInitialize()
         => Task.CompletedTask; // 部分子类无特别操作
     
     public async Task Save()
     {
+        await SaveDataAsync(Data);
+        NotifyDataChanged();
+    }
+
+    // Commit a candidate before publishing it in memory or notifying observers.
+    protected async Task SaveDataAsync(T data)
+    {
+        ValidateData(data);
         await _saveLock.WaitAsync();
+        string? temporaryPath = null;
         try
         {
-            // 覆盖原始文件
-            await using var fs = new FileStream(_configPath,FileMode.Create,FileAccess.Write,FileShare.Read,0,true);
-            await JsonSerializer.SerializeAsync(fs, Data, _jsonTypeInfo);
-            OnDataChanged?.Invoke();
-            Debug.WriteLine("[OneLauncher.Core.Global.ModelDataMangers.BasicDataManager.Save] 已触发数据更改事件");
+            temporaryPath = ConfigPath + $".{Guid.NewGuid():N}.tmp";
+            await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew,
+                FileAccess.Write, FileShare.None, 4096, true))
+            {
+                await JsonSerializer.SerializeAsync(stream, data, _jsonTypeInfo);
+                await stream.FlushAsync();
+            }
+            File.Move(temporaryPath, ConfigPath, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            throw new OlanException("保存配置文件失败", $"无法保存 {ConfigPath}：{ex.Message}",
+                OlanExceptionAction.Error, ex);
         }
         finally
         {
+            if (temporaryPath != null)
+            {
+                try { File.Delete(temporaryPath); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Trace.TraceWarning($"无法清理临时配置文件 {temporaryPath}：{ex.Message}");
+                }
+            }
             _saveLock.Release();
+        }
+    }
+
+    protected void NotifyDataChanged()
+    {
+        // A subscriber failure must not turn a committed save into a failure.
+        if (OnDataChanged == null) return;
+        foreach (Action subscriber in OnDataChanged.GetInvocationList())
+        {
+            try { subscriber(); }
+            catch (Exception ex) { Trace.TraceError($"配置更改事件处理失败：{ex}"); }
         }
     }
     protected abstract JsonTypeInfo<T> CreateJsonTypeInfo(JsonSerializerOptions options);

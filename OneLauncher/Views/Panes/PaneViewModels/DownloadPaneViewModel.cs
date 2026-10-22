@@ -4,8 +4,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using OneLauncher.Codes;
-using OneLauncher.Core.Downloader;
-using OneLauncher.Core.Downloader.DownloadMinecraftProviders;
+using OneLauncher.Core.DefaultComponent.Downloader;
+using OneLauncher.Core.DefaultComponent.Downloader.DownloadMinecraftProviders;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper.Models;
@@ -21,7 +21,6 @@ using System.Threading.Tasks;
 namespace OneLauncher.Views.Panes.PaneViewModels;
 internal partial class DownloadPaneViewModel : BaseViewModel
 {
-    private readonly DBManager _configManager;
     private readonly GameDataManager _gameDataManager;
     private readonly UnitedCore _unitedCore;
     private readonly Action _onCloseCallback;
@@ -36,12 +35,10 @@ internal partial class DownloadPaneViewModel : BaseViewModel
 #endif
     public DownloadPaneViewModel(
         VersionBasicInfo Version,
-        DBManager dBManager,
         GameDataManager gameDataManager,
         UnitedCore unitedCore,
         Action onCloseCallback)
     {
-        this._configManager = dBManager;
         this._gameDataManager = gameDataManager;
         this._unitedCore = unitedCore;
         this._onCloseCallback = onCloseCallback;
@@ -161,21 +158,8 @@ internal partial class DownloadPaneViewModel : BaseViewModel
                         return;
                     }
                 }
-                UserVersion? mayInstalledVersion = _configManager.Data.VersionList.FirstOrDefault(x => x.VersionID == VersionName);
-                if (mayInstalledVersion == null)
-                    _configManager.Data.VersionList.Add(content.VersionInstallInfo);
-                else
-                {
-                    var updatedModType = mayInstalledVersion.modType;
-                    if (content.VersionInstallInfo.modType.IsFabric) updatedModType.IsFabric = true;
-                    if (content.VersionInstallInfo.modType.IsNeoForge) updatedModType.IsNeoForge = true;
-                    if (content.VersionInstallInfo.modType.IsForge) updatedModType.IsForge = true;
-                    if (content.VersionInstallInfo.modType.IsQuilt) updatedModType.IsQuilt = true;
-                    mayInstalledVersion.modType = updatedModType; // 将修改后的整个副本赋值回去
-                }
                 await _gameDataManager.AddGameDataAsync(content.UserInfo);
                 await _gameDataManager.SetDefaultInstanceAsync(content.UserInfo.InstanceId);
-                await _configManager.Save();
                 WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage($"“{content.UserInfo.Name}”已成功创建并设为默认启动项。"));
             }
             catch (OperationCanceledException)

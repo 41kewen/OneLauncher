@@ -10,7 +10,7 @@ using OneLauncher.Core.Global;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper;
 using OneLauncher.Core.Helper.Models;
-using OneLauncher.Core.Net.Server;
+using OneLauncher.Core.DefaultComponent.Server;
 using OneLauncher.Views.Panes;
 using OneLauncher.Views.Panes.PaneViewModels.Factories;
 using System;
@@ -85,7 +85,7 @@ internal partial class ServerPageViewModel : BaseViewModel
 {
     private readonly UnitedCore _unitedCore;
     private readonly DBManager _dbManager;
-    private readonly GameDataManager _gameDataManager;
+    private GameDataManager _gameDataManager => _unitedCore.GameDataManager;
     private readonly AddServerPaneViewModelFactory _addServerPaneViewModelFactory;
     private readonly EditServerPaneViewModelFactory _editServerPaneViewModelFactory;
     private readonly EditGameDataPaneViewModelFactory _editGameDataPaneViewModelFactory;
@@ -97,7 +97,6 @@ internal partial class ServerPageViewModel : BaseViewModel
 
     public ServerPageViewModel(
         DBManager dbManager,
-        GameDataManager gameDataManager,
         UnitedCore unitedCore,
         AddServerPaneViewModelFactory addServerPaneViewModelFactory,
         EditServerPaneViewModelFactory editServerPaneViewModelFactory,
@@ -106,7 +105,6 @@ internal partial class ServerPageViewModel : BaseViewModel
     {
         _unitedCore = unitedCore;
         _dbManager = dbManager;
-        _gameDataManager = gameDataManager;
         _addServerPaneViewModelFactory = addServerPaneViewModelFactory;
         _editServerPaneViewModelFactory = editServerPaneViewModelFactory;
         _editGameDataPaneViewModelFactory = editGameDataPaneViewModelFactory;
@@ -229,7 +227,7 @@ internal partial class ServerPageViewModel : BaseViewModel
     [RelayCommand]
     private async Task LaunchServer(ServerEntry serverEntry)
     {
-        GameData? gameData = Init.GameDataManger.GetInstanceFromId(serverEntry.InstanceId);
+        GameData? gameData = _unitedCore.GameDataManager.GetInstanceFromId(serverEntry.InstanceId);
         if (gameData == null)
         {
             await OlanExceptionWorker.ForOlanException(

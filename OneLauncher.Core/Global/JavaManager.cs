@@ -1,6 +1,6 @@
 ﻿using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper;
-using OneLauncher.Core.Net.JavaProviders;
+using OneLauncher.Core.DefaultComponent.JavaProviders;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

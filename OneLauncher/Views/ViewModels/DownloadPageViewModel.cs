@@ -4,7 +4,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using OneLauncher.Codes;
-using OneLauncher.Core.Downloader;
+using OneLauncher.Core.DefaultComponent.Downloader;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Minecraft;
 using OneLauncher.Views;

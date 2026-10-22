@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <!-- Directory.Build.props is imported before the SDK supplies its default
+         Configuration. Apply the same default before choosing platform packages. -->
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <!-- RID is the only platform source for target-specific builds. Plain Debug
+         without a RID is explicitly local development, never a release artifact. -->
+    <OneLauncherTargetOS Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-'))">Windows</OneLauncherTargetOS>
+    <OneLauncherTargetOS Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))">Linux</OneLauncherTargetOS>
+    <OneLauncherTargetOS Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx-'))">macOS</OneLauncherTargetOS>
+    <OneLauncherTargetOS Condition="'$(RuntimeIdentifier)' == '' and '$(Configuration)' == 'Debug' and $([MSBuild]::IsOSPlatform('Windows'))">Windows</OneLauncherTargetOS>
+    <OneLauncherTargetOS Condition="'$(RuntimeIdentifier)' == '' and '$(Configuration)' == 'Debug' and $([MSBuild]::IsOSPlatform('Linux'))">Linux</OneLauncherTargetOS>
+    <OneLauncherTargetOS Condition="'$(RuntimeIdentifier)' == '' and '$(Configuration)' == 'Debug' and $([MSBuild]::IsOSPlatform('OSX'))">macOS</OneLauncherTargetOS>
+  </PropertyGroup>
+</Project>

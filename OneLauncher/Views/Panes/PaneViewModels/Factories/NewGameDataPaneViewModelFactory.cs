@@ -6,24 +6,26 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using OneLauncher.Core.Global;
+
 namespace OneLauncher.Views.Panes.PaneViewModels.Factories;
 internal class NewGameDataPaneViewModelFactory
 {
     private readonly GameDataManager _gameDataManager;
-    private readonly DBManager _dBManager;
+    private readonly VersionListManager _versionListManager;
     private readonly AccountManager _accountManager;
-    public NewGameDataPaneViewModelFactory(GameDataManager gameDataManager, AccountManager accountManager,DBManager dBManager)
+    public NewGameDataPaneViewModelFactory(UnitedCore unitedCore)
     {
-        _dBManager = dBManager;
-        _gameDataManager = gameDataManager;
-        _accountManager = accountManager;
+        _versionListManager = unitedCore.VersionListManager;
+        _gameDataManager = unitedCore.GameDataManager;
+        _accountManager = unitedCore.AccountManager;
     }
     public NewGameDataPaneViewModel Create(Action onCloseCallback)
     {
-        return new NewGameDataPaneViewModel(_dBManager, _accountManager,_gameDataManager,onCloseCallback);
+        return new NewGameDataPaneViewModel(_versionListManager, _accountManager,_gameDataManager,onCloseCallback);
     }
     public NewGameDataPaneViewModel Create(UserVersion defaultBasicVerions, Action onCloseCallback)
     {
-        return new NewGameDataPaneViewModel(_dBManager, _accountManager, _gameDataManager, onCloseCallback, defaultBasicVerions);
+        return new NewGameDataPaneViewModel(_versionListManager, _accountManager, _gameDataManager, onCloseCallback, defaultBasicVerions);
     }
 }

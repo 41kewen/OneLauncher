@@ -73,7 +73,7 @@ public partial class MainWindow : Window
             servises.AddSingleton<SettingsPageViewModel>();
             servises.AddSingleton<VersionPageViewModel>();
 
-            // Pane ViewModel本身是单例的，但工厂模式可以保证每次获取都是新的实例
+            // 工厂是单例，每次 Create 返回新的 Pane ViewModel 实例。
             servises.AddSingleton<NewGameDataPaneViewModelFactory>();
             servises.AddSingleton<AddServerPaneViewModelFactory>();
             servises.AddSingleton<EditServerPaneViewModelFactory>();
@@ -122,6 +122,9 @@ public partial class MainWindow : Window
                 { DataContext = provider.GetRequiredService<GameDataPageViewModel>() };
                 serverPage = new server()
                 { DataContext = provider.GetRequiredService<ServerPageViewModel>() };
+                var migrationNotice = provider.GetRequiredService<UnitedCore>().VersionListManager.MigrationNotice;
+                if (!string.IsNullOrWhiteSpace(migrationNotice))
+                    ShowFlyout("版本索引迁移", migrationNotice);
             }
             catch (OlanException ex)
             {
@@ -147,6 +150,27 @@ public partial class MainWindow : Window
             Math.Clamp(appSettings.LeftButtonListSpacing, 0, 30));
         ServerListBoxItem.IsVisible = appSettings.IsServerPageVisible;
         VersionListBoxItem.IsVisible = appSettings.IsVersionPageVisible;
+        GameDataListBoxItem.IsVisible = appSettings.IsGameDataPageVisible;
+        DownloadListBoxItem.IsVisible = appSettings.IsDownloadPageVisible;
+        ModsBrowserListBoxItem.IsVisible = appSettings.IsModsBrowserPageVisible;
+        AccountListBoxItem.IsVisible = appSettings.IsAccountPageVisible;
+        HomeListBoxItem.IsVisible = true;
+        SettingsListBoxItem.IsVisible = true;
+
+        if ((SplitListBox.SelectedItem is ListBoxItem selected && !selected.IsVisible) ||
+            (versionPage != null && PageContent.Content == versionPage && !VersionListBoxItem.IsVisible) ||
+            (gamedataPage != null && PageContent.Content == gamedataPage && !GameDataListBoxItem.IsVisible) ||
+            (serverPage != null && PageContent.Content == serverPage && !ServerListBoxItem.IsVisible) ||
+            (downloadPage != null && PageContent.Content == downloadPage && !DownloadListBoxItem.IsVisible) ||
+            (modsBrowserPage != null && PageContent.Content == modsBrowserPage && !ModsBrowserListBoxItem.IsVisible) ||
+            (accountPage != null && PageContent.Content == accountPage && !AccountListBoxItem.IsVisible))
+        {
+            if (HomePage != null)
+            {
+                SplitListBox.SelectedItem = HomeListBoxItem;
+                PageContent.Content = HomePage;
+            }
+        }
     }
 
     /// <summary>
@@ -164,7 +188,7 @@ public partial class MainWindow : Window
         if (listBox == null) return;
 
         var selectedItem = listBox.SelectedItem as ListBoxItem;
-        if (selectedItem == null) return;
+        if (selectedItem == null || !selectedItem.IsVisible) return;
 
         switch (selectedItem.Tag)
         {

@@ -1,5 +1,6 @@
 ﻿using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper.Models;
+using OneLauncher.Core.Global;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,10 +13,10 @@ internal class EditGameDataPaneViewModelFactory
 {
     private readonly GameDataManager gameDataManager;
     private readonly AccountManager accountManager;
-    public EditGameDataPaneViewModelFactory(GameDataManager gameDataManager,AccountManager accountManager)
+    public EditGameDataPaneViewModelFactory(UnitedCore unitedCore)
     {
-        this.gameDataManager = gameDataManager;
-        this.accountManager = accountManager;
+        gameDataManager = unitedCore.GameDataManager;
+        accountManager = unitedCore.AccountManager;
     }
     public EditGameDataPaneViewModel Create(GameData gameData,Action onCloseCallback)
     {

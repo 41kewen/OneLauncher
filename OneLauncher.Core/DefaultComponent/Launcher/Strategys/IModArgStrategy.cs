@@ -1,0 +1,15 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace OneLauncher.Core.DefaultComponent.Launcher.Strategys;
+
+internal interface IModArgStrategy
+{
+    string GetMainClassOverride();
+    IDictionary<string,string> GetModLibraries();
+    IEnumerable<string> GetAdditionalJvmArgs();
+    IEnumerable<string> GetAdditionalGameArgs();
+}

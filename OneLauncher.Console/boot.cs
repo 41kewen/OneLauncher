@@ -2,7 +2,7 @@
 using OneLauncher.Core.Helper;
 using OneLauncher.Core.Helper.Models;
 using Microsoft.Extensions.DependencyInjection;
-using OneLauncher.Core.Net.Server;
+using OneLauncher.Core.DefaultComponent.Server;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -37,7 +37,7 @@ public class Boot
                             string.Equals(x.Name, serverIdentifier, StringComparison.OrdinalIgnoreCase));
                     if (server == null) break;
 
-                    var game = Init.GameDataManger.GetInstanceFromId(server.InstanceId);
+                    var game = unitedCore.GameDataManager.GetInstanceFromId(server.InstanceId);
                     if (game == null) break;
                     using (var launchService = unitedCore.GameLaunchService.CreateLaunchService())
                         await launchService.Play(game, server.ServerInfo);
