@@ -131,7 +131,7 @@ internal partial class DownloadPaneViewModel : BaseViewModel
                             {
                                 Dp = p.d switch
                                 {
-                                    DownProgress.Meta => p.c,
+                                    DownProgress.Meta => "正在准备元数据",
                                     DownProgress.DownAndInstModFiles => "下载并安装模组加载器...",
                                     DownProgress.DownLog4j2 => "下载日志配置...",
                                     DownProgress.DownLibs => "下载库文件...",
@@ -192,6 +192,7 @@ internal partial class DownloadPaneViewModel : BaseViewModel
     {
         // TaskInstance 持有同一个 CancellationTokenSource；通过它取消即可，避免重复触发取消回调。
         task?.Cancel();
+        ClosePane();
     }
     [RelayCommand]
     public void ClosePane()
