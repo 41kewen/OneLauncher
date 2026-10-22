@@ -20,8 +20,9 @@ internal class FabricProvider : IModLoaderConcreteProviders
     {
         _context = context;
     }
-    public async Task<List<NdDowItem>> GetDependencies()
+    public async Task<List<NdDowItem>> GetDependencies(Action<string>? reportStatus = null)
     {
+        reportStatus?.Invoke("正在获取 Fabric 加载器元数据...");
         List<NdDowItem> fabricDependencies;
         string fabricMetaFilePath = Path.Combine(
             _context.VersionInstallInfo.VersionPath,
@@ -56,6 +57,7 @@ internal class FabricProvider : IModLoaderConcreteProviders
 
         if (_context.IsDownloadFabricWithAPI)
         {
+            reportStatus?.Invoke($"已收集 {fabricDependencies.Count} 个 Fabric 库条目，正在查询 Fabric API 及其依赖信息...");
             var modrinthTask = new GetModrinth(
                 "fabric-api", 
                 _context.ID,  

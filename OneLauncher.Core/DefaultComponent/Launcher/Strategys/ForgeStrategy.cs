@@ -1,6 +1,7 @@
 ﻿using OneLauncher.Core.DefaultComponent.Mod.ModLoader.forgeseries;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Helper;
+using OneLauncher.Core.DefaultComponent.Mod.ModLoader.forgeseries.Launch;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,15 +25,14 @@ internal class ForgeStrategy : IModArgStrategy
     public static async Task<ForgeStrategy> CreateAsync(string versionPath, string basePath,string versionID)
     {
         var strategy = new ForgeStrategy(basePath,versionID);
-        string jsonPath = Path.Combine(versionPath, "version.forge.json");
-        await strategy._parser.Init(basePath, versionPath, true);
+        await strategy._parser.Init(basePath, versionID, true);
         return strategy;
     }
 
-    public string? GetMainClassOverride() => _parser.info.MainClass;
+    public string GetMainClassOverride() => _parser.info.MainClass;
 
     public IDictionary<string, string> GetModLibraries()
-        => _parser.GetLibrariesForLaunch(Init.GameRootPath);
+        => _parser.GetLibrariesForLaunch(_basePath);
 
     public IEnumerable<string> GetAdditionalJvmArgs()
     {
@@ -48,9 +48,13 @@ internal class ForgeStrategy : IModArgStrategy
 #endif
         };
 
-        return _parser.info.Arguments.Jvm.Select(arg => Tools.ReplacePlaceholders(arg, placeholders));
+        return ForgeLaunchArguments.Expand(_parser.info.Arguments?.Jvm)
+            .Select(arg => ForgeLaunchArguments.Encode(Tools.ReplacePlaceholders(arg, placeholders)));
     }
 
     // Game 参数通常是固定的，但以防万一也加上替换逻辑
-    public IEnumerable<string> GetAdditionalGameArgs() => _parser.info.Arguments.Game;
+    public IEnumerable<string> GetAdditionalGameArgs() => _parser.info.Arguments == null
+        ? ForgeLaunchArguments.LegacyGame(_parser.info.MinecraftArguments)
+        : ForgeLaunchArguments.Expand(_parser.info.Arguments.Game)
+            .Select(ForgeLaunchArguments.Encode);
 }

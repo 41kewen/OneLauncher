@@ -1,6 +1,7 @@
 ﻿using OneLauncher.Core.DefaultComponent.Mod.ModLoader.forgeseries;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Helper;
+using OneLauncher.Core.DefaultComponent.Mod.ModLoader.forgeseries.Launch;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,16 +24,14 @@ internal class NeoForgeStrategy : IModArgStrategy
     public static async Task<NeoForgeStrategy> CreateAsync(string versionPath, string basePath, string versionID)
     {
         var strategy = new NeoForgeStrategy(basePath, versionID);
-        string jsonPath = Path.Combine(versionPath, "version.neoforge.json"); // 关键区别文件名
-        // isForge 参数为 false
-        await strategy._parser.Init(basePath, Path.GetFileName(versionPath), false);
+        await strategy._parser.Init(basePath, versionID, false);
         return strategy;
     }
 
-    public string? GetMainClassOverride() => _parser.info.MainClass;
+    public string GetMainClassOverride() => _parser.info.MainClass;
 
     public IDictionary<string, string> GetModLibraries()
-        => _parser.GetLibrariesForLaunch(Init.GameRootPath);
+        => _parser.GetLibrariesForLaunch(_basePath);
 
     public IEnumerable<string> GetAdditionalJvmArgs()
     {
@@ -46,8 +45,12 @@ internal class NeoForgeStrategy : IModArgStrategy
                 { "classpath_separator" , ":" }
 #endif
             };
-        return _parser.info.Arguments.Jvm.Select(arg => Tools.ReplacePlaceholders(arg, placeholders));
+        return ForgeLaunchArguments.Expand(_parser.info.Arguments?.Jvm)
+            .Select(arg => ForgeLaunchArguments.Encode(Tools.ReplacePlaceholders(arg, placeholders)));
     }
 
-    public IEnumerable<string> GetAdditionalGameArgs() => _parser.info.Arguments.Game;
+    public IEnumerable<string> GetAdditionalGameArgs() => _parser.info.Arguments == null
+        ? ForgeLaunchArguments.LegacyGame(_parser.info.MinecraftArguments)
+        : ForgeLaunchArguments.Expand(_parser.info.Arguments.Game)
+            .Select(ForgeLaunchArguments.Encode);
 }

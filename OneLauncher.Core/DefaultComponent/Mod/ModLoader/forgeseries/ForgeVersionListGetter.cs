@@ -33,7 +33,10 @@ public class ForgeVersionListGetter
     /// <returns>安装器的完整下载 URL。</returns>
     public async Task<string> GetInstallerUrlAsync(bool isForge, string mcVersion, bool allowBeta = true, bool useRecommended = true)
     {
-        string fullVersion = isForge
+        if (!Version.TryParse(mcVersion, out var minecraft) || (minecraft.Major != 1 && minecraft.Major < 24))
+            throw new OlanException("版本无效", $"不支持的 Minecraft 版本：{mcVersion}");
+        if (isForge) JarMod.JarModSupport.RequireInstaller(mcVersion);
+        string? fullVersion = isForge
             ? await GetLatestForgeVersionAsync(mcVersion, useRecommended)
             : await GetLatestNeoForgeVersionAsync(mcVersion, allowBeta);
 
@@ -43,36 +46,73 @@ public class ForgeVersionListGetter
             throw new OlanException("版本获取失败", $"未能确定最新的 {modType} 版本。", OlanExceptionAction.Error);
         }
 
-        return isForge
-            ? $"https://maven.minecraftforge.net/net/minecraftforge/forge/{fullVersion}/forge-{fullVersion}-installer.jar"
-            : $"https://maven.neoforged.net/releases/net/neoforged/neoforge/{fullVersion}/neoforge-{fullVersion}-installer.jar";
+        return GetArtifactUrl(isForge, mcVersion, fullVersion);
+    }
+
+    public static string GetArtifactUrl(bool isForge, string mcVersion, string fullVersion)
+    {
+        if (!Version.TryParse(mcVersion, out var minecraft) || (minecraft.Major != 1 && minecraft.Major < 24))
+            throw new OlanException("版本无效", $"不支持的 Minecraft 版本：{mcVersion}");
+        // 指定版本也校验坐标，避免将用户输入变成路径或任意下载 URL。
+        if (isForge)
+        {
+            JarMod.JarModSupport.RequireInstaller(mcVersion);
+            var version = new ForgeVersionInfo(fullVersion);
+            if (version.MinecraftVersion != mcVersion) throw new OlanException("Forge 版本不匹配", fullVersion);
+        }
+        else if (mcVersion == "1.20.1")
+        {
+            if (new ForgeVersionInfo(fullVersion).MinecraftVersion != mcVersion)
+                throw new OlanException("NeoForge 版本不匹配", fullVersion);
+        }
+        else if (!fullVersion.StartsWith(ConvertMcVersionToNeoForgePrefix(mcVersion) ?? "invalid", StringComparison.Ordinal))
+            throw new OlanException("NeoForge 版本不匹配", fullVersion);
+        Installation.ForgePaths.RelativeMaven($"net.example:loader:{fullVersion}");
+        var artifact = isForge || mcVersion == "1.20.1" ? "forge" : "neoforge";
+        var repository = isForge ? "https://maven.minecraftforge.net/net/minecraftforge" : "https://maven.neoforged.net/releases/net/neoforged";
+        return $"{repository}/{artifact}/{fullVersion}/{artifact}-{fullVersion}-installer.jar";
     }
 
     #region Private Implementation Details
 
-    private async Task<string> GetLatestForgeVersionAsync(string mcVersion, bool useRecommended)
+    private async Task<string?> GetLatestForgeVersionAsync(string mcVersion, bool useRecommended)
     {
+        var allVersions = await FetchAndParseAllForgeVersionsAsync();
+        var candidates = allVersions.Where(v => v.MinecraftVersion == mcVersion).ToList();
+        if (candidates.Count == 0)
+            throw new OlanException("没有可用的 Forge 构建", $"Forge 官方 Maven 未发布 Minecraft {mcVersion} 对应的构建，请选择官方支持的 Minecraft 版本。");
         try
         {
             var promotions = await FetchForgePromotionsAsync();
             string key = useRecommended ? $"{mcVersion}-recommended" : $"{mcVersion}-latest";
-            if (promotions.TryGetValue(key, out var forgeNum)) return $"{mcVersion}-{forgeNum}";
-            if (useRecommended && promotions.TryGetValue($"{mcVersion}-latest", out forgeNum)) return $"{mcVersion}-{forgeNum}";
+            if (promotions.TryGetValue(key, out var forgeNum) ||
+                (useRecommended && promotions.TryGetValue($"{mcVersion}-latest", out forgeNum)))
+            {
+                var selected = allVersions.FirstOrDefault(v => v.MinecraftVersion == mcVersion && v.ForgeVersion.ToString() == forgeNum);
+                if (selected != null) return selected.FullVersionString;
+            }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[ForgeVersionGetter] 获取 Forge promotions 失败: {ex.Message}。将从完整列表查找。");
         }
 
-        var allVersions = await FetchAndParseAllForgeVersionsAsync();
-        var suitableVersion = allVersions.Where(v => v.MinecraftVersion == mcVersion).Max();
+        var suitableVersion = candidates.Max();
 
         return suitableVersion?.FullVersionString;
     }
 
-    private async Task<string> GetLatestNeoForgeVersionAsync(string mcVersion, bool allowBeta)
+    private async Task<string?> GetLatestNeoForgeVersionAsync(string mcVersion, bool allowBeta)
     {
-        string prefix = ConvertMcVersionToNeoForgePrefix(mcVersion);
+        if (mcVersion == "1.20.1")
+        {
+            var xml = await _httpClient.GetStringAsync("https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml");
+            // 仓库同时保留 47.x 别名，只选择带 Minecraft 前缀的完整构件版本。
+            return XDocument.Parse(xml).Descendants("version")
+                .Where(v => v.Value.StartsWith(mcVersion + "-", StringComparison.Ordinal))
+                .Select(v => new ForgeVersionInfo(v.Value)).Max()?.FullVersionString;
+        }
+        string? prefix = ConvertMcVersionToNeoForgePrefix(mcVersion);
         if (prefix == null) throw new OlanException("无效的 Minecraft 版本", $"无法为 '{mcVersion}' 生成有效的 NeoForge 版本前缀。", OlanExceptionAction.Warning);
 
         var allVersions = await FetchAndParseAllNeoForgeVersionsAsync();
@@ -85,9 +125,10 @@ public class ForgeVersionListGetter
     {
         try
         {
-            var promoData = 
+            using var stream = await _httpClient.GetStreamAsync(ForgePromotionsUrl);
+            var promoData =
                 await JsonSerializer.DeserializeAsync<ForgePromotionData>(
-                    await _httpClient.GetStreamAsync(ForgePromotionsUrl),ForgeSeriesJsonContext.Default.ForgePromotionData);
+                    stream,ForgeSeriesJsonContext.Default.ForgePromotionData);
             return promoData?.Promos ?? new Dictionary<string, string>();
         }
         catch (Exception ex)
@@ -106,15 +147,17 @@ public class ForgeVersionListGetter
         {
             return XDocument.Parse(xmlContent).Descendants("version")
                 .Select(v => { try { return new ForgeVersionInfo(v.Value); } catch { return null; } })
-                .Where(v => v != null).ToList();
+                .OfType<ForgeVersionInfo>().ToList();
         }
         catch (System.Xml.XmlException ex) { throw new OlanException("元数据格式错误", "Forge 版本列表的 XML 元数据格式无效。", OlanExceptionAction.Error, ex); }
     }
 
-    private string ConvertMcVersionToNeoForgePrefix(string mcVersion)
+    private static string? ConvertMcVersionToNeoForgePrefix(string mcVersion)
     {
-        if (string.IsNullOrWhiteSpace(mcVersion) || !mcVersion.StartsWith("1.")) return null;
-        var versionPart = mcVersion.Substring(2).Split('.');
+        if (!Version.TryParse(mcVersion, out var parsed) || (parsed.Major != 1 && parsed.Major < 24)) return null;
+        var versionPart = (parsed.Major == 1 ? mcVersion[2..] : mcVersion).Split('.');
+        if (parsed.Major >= 24) return mcVersion + (versionPart.Length == 2 ? ".0." : ".");
+        if (versionPart.Length == 1 && int.TryParse(versionPart[0], out _)) return $"{versionPart[0]}.0.";
         if (versionPart.Length >= 2 && int.TryParse(versionPart[0], out _) && int.TryParse(versionPart[1], out _))
             return $"{versionPart[0]}.{versionPart[1]}.";
         return null;
@@ -130,7 +173,7 @@ public class ForgeVersionListGetter
         {
             return XDocument.Parse(xmlContent).Descendants("version")
                 .Select(v => { try { return new NeoForgeVersionInfo(v.Value); } catch { return null; } })
-                .Where(v => v != null).ToList();
+                .OfType<NeoForgeVersionInfo>().ToList();
         }
         catch (System.Xml.XmlException ex) { throw new OlanException("元数据格式错误", "NeoForge 版本列表的 XML 元数据格式无效。", OlanExceptionAction.Error, ex); }
     }

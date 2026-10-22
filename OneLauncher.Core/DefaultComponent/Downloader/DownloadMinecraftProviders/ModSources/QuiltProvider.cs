@@ -19,8 +19,9 @@ internal class QuiltProvider : IModLoaderConcreteProviders
     {
         _context = context;
     }
-    public async Task<List<NdDowItem>> GetDependencies()
+    public async Task<List<NdDowItem>> GetDependencies(Action<string>? reportStatus = null)
     {
+        reportStatus?.Invoke("正在获取 Quilt 加载器元数据...");
         List<NdDowItem> quiltDependencies;
         string quiltMetaFilePath = Path.Combine(
             _context.VersionInstallInfo.VersionPath,
@@ -46,6 +47,7 @@ internal class QuiltProvider : IModLoaderConcreteProviders
         // Quilt 同样可以有 API (Quilted Fabric API / QSL)
         if (_context.ISDownloadQuiltWhitQSL) // 复用这个选项
         {
+            reportStatus?.Invoke($"已收集 {quiltDependencies.Count} 个 Quilt 库条目，正在查询 QSL 及其依赖信息...");
             var modrinthTask = new GetModrinth(
                 "qsl", // Quilt Standard Libraries (QSL)
                 _context.ID,

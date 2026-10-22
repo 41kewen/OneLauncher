@@ -21,18 +21,27 @@ internal partial class DownloadMinecraft
     );
     internal async Task<DownloadPlan> CreateDownloadPlan()
     {
+        void ReportMeta(string message) => progress?.Report((DownProgress.Meta, 0, 0, message));
+
         #region 原版资源
         var mation = info.VersionMojangInfo;
         // 依赖库和资源文件
+        ReportMeta("正在收集原版依赖库信息...");
         var libraryFiles = new List<NdDowItem>(mation.GetLibraries());
+        ReportMeta($"已收集 {libraryFiles.Count} 个原版库条目，正在获取资源索引...");
         var assetsIndex = mation.GetAssets();
         if (!File.Exists(assetsIndex.path))
+        {
+            ReportMeta("正在下载资源索引，完成后生成资源文件清单...");
             await info.DownloadTool.DownloadFile(assetsIndex.url,assetsIndex.path,cancelToken);
+        }
+        ReportMeta("正在读取资源索引并生成资源文件清单...");
         var assetFiles = VersionAssetIndex.ParseAssetsIndex(
             await File.ReadAllTextAsync(assetsIndex.path, cancelToken),
             info.GameRootPath
         );
         // 一些别的
+        ReportMeta($"已收集 {assetFiles.Count} 个资源条目，正在收集游戏主文件和日志配置信息...");
         var clientFile = mation.GetMainFile();
         var loggingFile = mation.GetLoggingConfig();
         #endregion
@@ -49,7 +58,7 @@ internal partial class DownloadMinecraft
         if (info.VersionInstallInfo.modType.IsQuilt) 
             providers.Add(new QuiltProvider(info));
 
-        List<NdDowItem>? modFiles = new();
+        List<NdDowItem> modFiles = new();
         #endregion
 
         #region 汇总所有文件
@@ -62,9 +71,13 @@ internal partial class DownloadMinecraft
         if (providers.Count != 0)
             foreach (var provider in providers)
             {
-                modFiles.AddRange(await provider.GetDependencies());
-                allFiles.AddRange(modFiles);
+                var dependencies = await provider.GetDependencies(ReportMeta);
+                ReportMeta($"当前加载器信息收集完成：{dependencies.Count} 个文件条目。");
+                modFiles.AddRange(dependencies);
+                allFiles.AddRange(dependencies);
             }
+
+        ReportMeta($"已收集原版库 {libraryFiles.Count} 项、资源 {assetFiles.Count} 项、加载器文件 {modFiles.Count} 项，正在检查本地已有文件...");
         
         return new DownloadPlan(
             // 自动检查文件存在性

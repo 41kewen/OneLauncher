@@ -1,349 +1,175 @@
-﻿using OneLauncher.Core.DefaultComponent.Downloader;
-using OneLauncher.Core.Global;
-using OneLauncher.Core.Helper;
-using OneLauncher.Core.Helper.Models;
-using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.IO.Compression;
-using System.Net.Http;
-using System.Reflection.Metadata;
 using System.Text;
 using System.Text.Json;
+using OneLauncher.Core.DefaultComponent.Downloader;
+using OneLauncher.Core.DefaultComponent.Mod.ModLoader.forgeseries.Installation;
+using OneLauncher.Core.DefaultComponent.Mod.ModLoader.forgeseries.Processors;
+using OneLauncher.Core.DefaultComponent.Mod.ModLoader.forgeseries.Legacy;
+using OneLauncher.Core.Global;
+using OneLauncher.Core.Helper.Models;
 
-namespace OneLauncher.Core.DefaultComponent.Mod.ModLoader.forgeseries
+namespace OneLauncher.Core.DefaultComponent.Mod.ModLoader.forgeseries;
+
+public delegate void ProcessorsOut(int all, int done, string message);
+
+/// <summary>保留 Provider 入口，按包内协议准备和执行一次客户端安装。</summary>
+internal sealed class ForgeSeriesInstallTasker
 {
-    public delegate void ProcessorsOut(int all, int done, string message);
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> InstallLocks = new(
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+    private readonly Download _download;
+    private readonly string _libraries;
+    private readonly string _root;
+    private ForgePreparedInstall? _prepared;
+    public event ProcessorsOut? ProcessorsOutEvent;
 
-    /// <summary>
-    /// 通用安装器，负责处理所有基于 install_profile.json 的 Mod 加载器安装流程 (如 Forge, NeoForge)。
-    /// </summary>
-    internal class ForgeSeriesInstallTasker
+    public ForgeSeriesInstallTasker(Download downloadTask, string librariesPath, string gameRootPath)
     {
-        private readonly Download _downloadTask;
-        private readonly string librariesPath;
-        private readonly string _gameRootPath; // 这个字段必须是 .minecraft 目录
-        private ForgeSeriesInstallProfile _currentProfile;
+        _download = downloadTask;
+        _libraries = Path.GetFullPath(librariesPath);
+        _root = Path.GetFullPath(gameRootPath);
+    }
 
-        public event ProcessorsOut ProcessorsOutEvent;
+    public async Task<List<NdDowItem>> StartReadyAsync(string installerUrl, string modType, string versionId,
+        Action<string>? reportStatus = null)
+    {
+        _prepared = null;
+        reportStatus?.Invoke($"正在下载 {modType} 安装包，完成后解析依赖信息...");
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        using var response = await _download.UnityClient.GetAsync(installerUrl, timeout.Token);
+        response.EnsureSuccessStatusCode();
+        var bytes = await response.Content.ReadAsByteArrayAsync(timeout.Token);
+        reportStatus?.Invoke($"{modType} 安装包下载完成，正在解析安装协议及依赖...");
+        try { _prepared = ForgeInstallerParser.Parse(bytes, modType, versionId, _libraries); }
+        catch (Exception ex) when (ex is JsonException or InvalidDataException)
+        { throw new OlanException($"{modType} 安装包无效", "归档或 JSON 结构不正确。", OlanExceptionAction.Error, ex); }
+        reportStatus?.Invoke($"已确定 {_prepared.Protocol} 协议、{_prepared.Processors.Count} 个客户端处理器和 {_prepared.Downloads.Count} 个下载依赖。");
+        return _prepared.Downloads;
+    }
 
-        /// <summary>
-        /// 构造一个通用的 Forge/NeoForge 安装器。
-        /// </summary>
-        /// <param name="downloadTask">用于下载的 Download 实例。</param>
-        /// <param name="librariesPath">完整的 libraries 目录路径。</param>
-        /// <param name="gameRootPath">完整的游戏根目录路径 (即 .minecraft 目录)。</param>
-        public ForgeSeriesInstallTasker(
-            Download downloadTask,
-            string librariesPath,
-            string gameRootPath)
+    public async Task RunProcessorsAsync(string mainJarPath, string javaPath, CancellationToken token)
+    {
+        var prepared = _prepared ?? throw new OlanException("安装顺序错误", "必须先准备 Forge 安装包。");
+        // Forge 与 NeoForge 共享 libraries；同一游戏根的发布必须串行。
+        var gate = InstallLocks.GetOrAdd(_root, _ => new(1, 1));
+        await gate.WaitAsync(token);
+        // Java 8 的 Windows 启动器会将 Unicode classpath 转为本地代码页。
+        // 在系统临时目录运行处理器，避免游戏目录中的中文和深层路径使 JAR 无法加载。
+        var work = Path.Combine(Path.GetTempPath(), "OneLauncherForge", Guid.NewGuid().ToString("N"));
+        try
         {
-            _downloadTask = downloadTask;
-            this.librariesPath = librariesPath;
-            _gameRootPath = gameRootPath;
-        }
-
-        /// <summary>
-        /// 准备阶段：下载安装器、解压并解析必要文件。
-        /// </summary>
-        /// <param name="installerUrl">安装程序的 URL。</param>
-        /// <param name="modType">用于生成临时 JSON 文件名和错误信息，如 "Forge" 或 "NeoForge"。</param>
-        /// <param name="versionId">当前安装的游戏版本ID，如 "1.20.4"。</param>
-        /// <returns>包含所需下载库列表和 lzma 补丁临时路径的元组。</returns>
-        public async Task<(List<NdDowItem> versionLibs, List<NdDowItem> installerLibs, string lzmaPath)> StartReadyAsync(string installerUrl, string modType, string versionId)
-        {
-            try
-            {
-                using var memoryStream = new MemoryStream();
-                using var response = await _downloadTask.UnityClient.GetAsync(installerUrl);
-                response.EnsureSuccessStatusCode();
-                await response.Content.CopyToAsync(memoryStream);
-                memoryStream.Position = 0;
-
-                using var archive = new ZipArchive(memoryStream, ZipArchiveMode.Read);
-
-                var versionJsonEntry = archive.GetEntry("version.json") ?? throw new OlanException($"{modType} 安装失败", "安装包结构损坏：缺少 version.json 文件。", OlanExceptionAction.Error);
-                var installProfileEntry = archive.GetEntry("install_profile.json") ?? throw new OlanException($"{modType} 安装失败", "安装包结构损坏：缺少 install_profile.json 文件。", OlanExceptionAction.Error);
-                var dataClientLzmaEntry = archive.GetEntry("data/client.lzma") ?? throw new OlanException($"{modType} 安装失败", "安装包结构损坏：缺少 data/client.lzma 文件。", OlanExceptionAction.Error);
-
-                using var vjs = versionJsonEntry.Open();
-                using var ips = installProfileEntry.Open();
-                var versionInfo = await JsonSerializer.DeserializeAsync(vjs, ForgeSeriesJsonContext.Default.ForgeSeriesVersionJson);
-                _currentProfile = await JsonSerializer.DeserializeAsync(ips, ForgeSeriesJsonContext.Default.ForgeSeriesInstallProfile);
-
-                if (_currentProfile == null || versionInfo == null)
-                    throw new OlanException($"{modType} 安装失败", "无法解析安装配置文件，可能是安装包已损坏或版本不兼容。");
-
-                var versionLibs = versionInfo.Libraries.Select(lib => new NdDowItem(lib.Downloads.Artifact.Url, Path.Combine(librariesPath, lib.Downloads.Artifact.Path.Replace('/', Path.DirectorySeparatorChar)), lib.Downloads.Artifact.Size, lib.Downloads.Artifact.Sha1)).ToList();
-                var installerLibs = _currentProfile.Libraries.Select(lib => new NdDowItem(lib.Downloads.Artifact.Url, Path.Combine(librariesPath, lib.Downloads.Artifact.Path.Replace('/', Path.DirectorySeparatorChar)), lib.Downloads.Artifact.Size, lib.Downloads.Artifact.Sha1)).ToList();
-
-                var clientLzmaTempPath = Path.GetTempFileName();
-                var tempVersionJsonPath = Path.Combine(_gameRootPath, "versions", versionId, $"version.{modType.ToLower()}.json");
-                Directory.CreateDirectory(Path.GetDirectoryName(tempVersionJsonPath));
-
-                using (var vjsr = versionJsonEntry.Open())
-                using (var fs = new FileStream(tempVersionJsonPath, FileMode.Create, FileAccess.Write))
-                    await vjsr.CopyToAsync(fs);
-
-                using (var dclsr = dataClientLzmaEntry.Open())
-                using (var fs = new FileStream(clientLzmaTempPath, FileMode.Create, FileAccess.Write))
-                    await dclsr.CopyToAsync(fs);
-
-                return (versionLibs, installerLibs, clientLzmaTempPath);
-            }
-            catch (HttpRequestException ex) { throw new OlanException($"{modType} 安装失败", "下载安装器时发生网络错误，请检查网络连接。", OlanExceptionAction.Error, ex); }
-            catch (JsonException ex) { throw new OlanException($"{modType} 安装失败", "解析安装配置文件时出错，可能是安装包已损坏或版本不兼容。", OlanExceptionAction.Error, ex); }
-            catch (IOException ex) { throw new OlanException($"{modType} 安装失败", "读写临时文件时发生 IO 错误，请检查磁盘空间和权限。", OlanExceptionAction.Error, ex); }
-        }
-
-        /// <summary>
-        /// 执行阶段：按顺序运行所有客户端安装处理器。
-        /// </summary>
-        public async Task RunProcessorsAsync(string mainJarPath, string javaPath, string clientLzmaPath, CancellationToken token,bool isForge = false)
-        {
-            if (_currentProfile == null)
-                throw new OlanException("安装逻辑错误", "必须先调用 StartReadyAsync 来准备安装配置文件。", OlanExceptionAction.FatalError);
-
-            var placeholderDict = BuildPlaceholderDictionary(_currentProfile, librariesPath, _gameRootPath, mainJarPath, clientLzmaPath);
-            var clientProcessors = _currentProfile.Processors.Where(p => p.Sides == null || p.Sides.Contains("client")).ToList();
-            int alls = clientProcessors.Count;
-            int dones = 0;
-
-            ProcessorsOutEvent?.Invoke(alls, 0, "正在准备安装处理器...");
-            // 复制MC主文件
-            if (isForge)
-            {
-                if (placeholderDict.TryGetValue("MC_SRG", out string srgPath))
+            Directory.CreateDirectory(work);
+            var stagedLibraries = Path.Combine(work, "libraries");
+            var installer = Path.Combine(work, "installer.jar");
+            await File.WriteAllBytesAsync(installer, prepared.Installer, token);
+            var minecraftJar = Path.Combine(work, "minecraft.jar");
+            await ForgeFileVerifier.RequireAsync(mainJarPath, [], 0, token);
+            File.Copy(mainJarPath, minecraftJar);
+            using (var archive = ZipFile.OpenRead(installer))
+                foreach (var library in prepared.Libraries)
                 {
-                    try
+                    token.ThrowIfCancellationRequested();
+                    var staged = ForgePaths.Under(stagedLibraries, Path.GetRelativePath(_libraries, library.Download.path));
+                    if (library.Generated)
                     {
-                        ProcessorsOutEvent?.Invoke(alls, 0, "正在为 Forge 准备处理器工作文件...");
-                        Directory.CreateDirectory(Path.GetDirectoryName(srgPath));
-                        File.Copy(mainJarPath, srgPath, true);
+                        if (await ForgeFileVerifier.ValidAsync(library.Download.path, library.Hashes, library.Download.size, token))
+                            await ForgeFileVerifier.CopyAtomicAsync(library.Download.path, staged, token);
+                        continue;
                     }
-                    catch (Exception ex)
+                    Directory.CreateDirectory(Path.GetDirectoryName(staged)!);
+                    if (library.EmbeddedEntry != null)
+                        archive.GetEntry(ForgePaths.EntryName(library.EmbeddedEntry))!.ExtractToFile(staged, true);
+                    else
                     {
-                        throw new OlanException("文件准备失败", $"为 Forge 创建工作副本 ({Path.GetFileName(srgPath)}) 时出错。", OlanExceptionAction.Error, ex);
+                        // 公共下载计划可能已过滤缓存，仍在此校验完整的 Forge 依赖。
+                        if (!await ForgeFileVerifier.ValidAsync(library.Download.path, library.Hashes, library.Download.size, token))
+                            await _download.DownloadFile(library.Download.url, staged, token);
+                        else File.Copy(library.Download.path, staged);
                     }
+                    await ForgeFileVerifier.RequireAsync(staged, library.Hashes, library.Download.size, token);
                 }
-            }
-
-            foreach (var procDef in clientProcessors)
+            var tokens = new ForgeProcessorTokens(prepared, work, installer, minecraftJar);
+            // 只复用有预期摘要的生成输出；无 outputs 的处理器仍照常执行。
+            foreach (var name in new[] { "MC_SLIM", "MC_EXTRA", "PATCHED" })
+                if (tokens.Has(name) && tokens.Has(name + "_SHA"))
+                {
+                    var staged = tokens.Key(name);
+                    var cached = ForgePaths.Under(_libraries, Path.GetRelativePath(stagedLibraries, staged));
+                    if (await ForgeFileVerifier.ValidAsync(cached, [tokens.Key(name + "_SHA")], 0, token))
+                        await ForgeFileVerifier.CopyAtomicAsync(cached, staged, token);
+                }
+            var processors = prepared.Processors;
+            for (var i = 0; i < processors.Count; i++)
             {
                 token.ThrowIfCancellationRequested();
-                dones++;
-                ProcessorsOutEvent?.Invoke(alls, dones, $"正在准备处理器 {dones}/{alls}: {procDef.Jar}");
-
-                CreateOutputDirectories(procDef.Args, placeholderDict, librariesPath, alls, dones);
-
-                var mainJar = Tools.MavenToPath(librariesPath, procDef.Jar);
-                var mainClass = await GetMainClassFromJar(mainJar);
-                var cpArgs = BuildClasspathArgument(procDef.Classpath, librariesPath, mainJar);
-                var stdArgs = BuildProcessorArguments(procDef.Args, placeholderDict, librariesPath, alls, dones);
-
-                var process = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = javaPath,
-                        Arguments = $"{cpArgs} {mainClass} {stdArgs}",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        WorkingDirectory = _gameRootPath,
-                        StandardOutputEncoding = Encoding.UTF8,
-                        StandardErrorEncoding = Encoding.UTF8
-                    }
-                };
-
-                ProcessorsOutEvent?.Invoke(alls, dones, $"正在运行处理器 {dones}/{alls}...");
-                await RunSingleProcessorAsync(process, dones, alls, token);
-            }
-            ProcessorsOutEvent?.Invoke(alls, alls, "所有安装处理器已成功运行！");
-        }
-
-        #region Private Helper Methods
-
-        private async Task RunSingleProcessorAsync(Process process, int current, int total, CancellationToken token)
-        {
-            try
-            {
-                var outputTcs = new TaskCompletionSource<bool>();
-                var errorTcs = new TaskCompletionSource<bool>();
-
-                process.EnableRaisingEvents = true;
-
-                process.OutputDataReceived += (s, e) =>
-                {
-                    if (string.IsNullOrEmpty(e.Data))
-                        return;
-                    ProcessorsOutEvent?.Invoke(total, current, e.Data);
-                    Debug.WriteLine(e.Data);
-                };
-
-                process.ErrorDataReceived += (s, e) =>
-                {
-                    if (string.IsNullOrEmpty(e.Data))
-                        return;
-                    ProcessorsOutEvent?.Invoke(total, current, e.Data);
-                    Debug.WriteLine(e.Data);
-                };
-
-                process.Exited += (s, e) =>
-                {
-                    outputTcs.TrySetResult(true);
-                    errorTcs.TrySetResult(true);
-                };
-
-                process.Start();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-
-                await process.WaitForExitAsync(token);
-
-                if (process.ExitCode != 0)
-                {
-                    throw new OlanException("安装处理器失败", $"处理器 {current}/{total} 执行失败，退出代码为: {process.ExitCode}。请查看日志获取详细错误信息。", OlanExceptionAction.Error);
-                }
-            }
-            catch(OperationCanceledException)
-            {
-                // 取消时彻底关闭处理器
-                process.Kill();
-                throw;
-            }
-            catch (Exception ex) when (ex is not OlanException)
-            {
-                throw new OlanException("处理器调用失败", $"启动或等待处理器 {current}/{total} 时发生意外错误。", OlanExceptionAction.Error, ex);
-            }
-        }
-
-        private void CreateOutputDirectories(List<string> args, Dictionary<string, string> placeholders, string librariesPath, int all, int done)
-        {
-            foreach (var argTemplate in args)
-            {
-                string resolvedPath = null;
-                if (argTemplate.StartsWith("{") && argTemplate.EndsWith("}"))
-                {
-                    if (placeholders.TryGetValue(argTemplate.Trim('{', '}'), out var p)) resolvedPath = p;
-                }
-                else if (argTemplate.StartsWith("["))
-                {
-                    resolvedPath = Tools.MavenToPath(librariesPath, argTemplate);
-                }
-
-                if (resolvedPath != null)
-                {
-                    try
-                    {
-                        var dir = Path.GetDirectoryName(resolvedPath);
-                        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                    }
-                    catch (Exception ex)
-                    {
-                        ProcessorsOutEvent?.Invoke(all, done, $"[警告] 为参数 {argTemplate} 创建目录时出错: {ex.Message}");
-                    }
-                }
-            }
-        }
-
-        private async Task<string> GetMainClassFromJar(string jarPath)
-        {
-            try
-            {
-                using var fs = new FileStream(jarPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                using var archive = new ZipArchive(fs, ZipArchiveMode.Read);
-                var manifestEntry = archive.GetEntry("META-INF/MANIFEST.MF");
-                if (manifestEntry != null)
-                {
-                    using var reader = new StreamReader(manifestEntry.Open());
-                    string line;
-                    while ((line = await reader.ReadLineAsync()) != null)
-                    {
-                        if (line.StartsWith("Main-Class: "))
-                        {
-                            var mainClass = line.Substring("Main-Class: ".Length).Trim();
-                            if (!string.IsNullOrEmpty(mainClass)) return mainClass;
-                        }
-                    }
-                }
-            }
-            catch (IOException ex) { throw new OlanException("文件读取错误", $"无法读取处理器 JAR 文件。文件可能已损坏或被占用。", OlanExceptionAction.Error, ex); }
-
-            throw new OlanException("安装配置错误", $"在处理器的 MANIFEST.MF 文件中未找到有效的 'Main-Class' 定义。", OlanExceptionAction.Error);
-        }
-
-        private string BuildClasspathArgument(List<string> classpath, string librariesPath,string mainPath)
-        {
-            var cpBuilder = new StringBuilder();
-            char sep = Path.PathSeparator;
-
-            foreach (var cpEntry in classpath)
-            {
-                cpBuilder.Append(Tools.MavenToPath(librariesPath, cpEntry));
-                cpBuilder.Append(sep);
-            }
-            return $"-cp \"{cpBuilder.ToString()}{mainPath}\"";
-        }
-
-        private string BuildProcessorArguments(List<string> argsTemplate, Dictionary<string, string> placeholders, string librariesPath, int all, int done)
-        {
-            var stdArgsBuilder = new StringBuilder();
-            foreach (var arg in argsTemplate)
-            {
-                if (arg.StartsWith("{") && arg.EndsWith("}"))
-                {
-                    if (placeholders.TryGetValue(arg.Trim('{', '}'), out var value)) stdArgsBuilder.Append($"\"{value}\" ");
-                    else ProcessorsOutEvent?.Invoke(all, done, $"[警告] 未找到占位符 {arg}，将忽略此参数。");
-                }
-                else if (arg.StartsWith("["))
-                {
-                    stdArgsBuilder.Append($"\"{Tools.MavenToPath(librariesPath, arg)}\" ");
-                }
+                var step = i + 1;
+                void Report(string line) => ProcessorsOutEvent?.Invoke(processors.Count, step, line);
+                Report($"正在执行 {processors[i].Jar}");
+                if (await TryDownloadMappingsAsync(prepared, processors[i], tokens, mainJarPath, token))
+                    Report("已按官方元数据下载并校验客户端 mappings。");
                 else
                 {
-                    stdArgsBuilder.Append($"{arg} ");
+                    var processor = ForgeRealmsProcessor.Applies(processors[i])
+                        ? await ForgeRealmsProcessor.PrepareAsync(processors[i], mainJarPath, work, _download, token)
+                        : processors[i];
+                    await ForgeProcessorRunner.RunAsync(processor, tokens, stagedLibraries, javaPath, work, Report, token);
                 }
             }
-            return stdArgsBuilder.ToString().Trim();
+            // 最后一步不一定声明 outputs，独立检查已知产物摘要。
+            foreach (var name in new[] { "MC_SLIM", "MC_EXTRA", "PATCHED" })
+                if (tokens.Has(name))
+                    await ForgeFileVerifier.RequireAsync(tokens.Key(name), tokens.Has(name + "_SHA") ? [tokens.Key(name + "_SHA")] : [], 0, token);
+            foreach (var library in prepared.Libraries)
+                await ForgeFileVerifier.RequireAsync(ForgePaths.Under(stagedLibraries, Path.GetRelativePath(_libraries, library.Download.path)),
+                    library.Hashes, library.Download.size, token);
+            // 生成库先完成校验，再发布到既有 libraries。版本 JSON 最后提交。
+            foreach (var file in Directory.EnumerateFiles(stagedLibraries, "*", SearchOption.AllDirectories))
+                await ForgeFileVerifier.CopyAtomicAsync(file, ForgePaths.Under(_libraries, Path.GetRelativePath(stagedLibraries, file)), token);
+            var target = ForgePaths.Under(_root, $"versions/{prepared.Minecraft}/version.{prepared.ModType.ToLowerInvariant()}.json");
+            var candidate = Path.Combine(work, "version.json");
+            await File.WriteAllTextAsync(candidate, prepared.VersionJson, new UTF8Encoding(false), token);
+            await ForgeFileVerifier.CopyAtomicAsync(candidate, target, token);
+            ProcessorsOutEvent?.Invoke(processors.Count, processors.Count, "加载器产物已校验，版本配置已提交。");
         }
-
-        private Dictionary<string, string> BuildPlaceholderDictionary(ForgeSeriesInstallProfile profile, string librariesPath, string gameRootPath, string minecraftJarPath, string clientLzmaPath)
+        finally
         {
-            var placeholders = new Dictionary<string, string>
+            // work 是本次生成的唯一临时目录，不删除共享库或原版游戏。
+            try
             {
-                { "SIDE", "client" }, { "MINECRAFT_JAR", minecraftJarPath },
-                { "LIBRARY_DIR", librariesPath }, { "ROOT", gameRootPath },
-            };
-
-            if (profile.Data?.Placeholders == null) return placeholders;
-
-            foreach (var entry in profile.Data.Placeholders)
-            {
-                if (entry.Value is not JsonElement element) continue;
-                string rawValue = "";
-                if (element.ValueKind == JsonValueKind.Object && element.TryGetProperty("client", out var clientElement))
-                    rawValue = clientElement.GetString() ?? "";
-                else if (element.ValueKind == JsonValueKind.String)
-                    rawValue = element.GetString() ?? "";
-
-                if (string.IsNullOrEmpty(rawValue)) continue;
-
-                string processedValue;
-                if (rawValue.StartsWith("[") && rawValue.EndsWith("]"))
-                    processedValue = Tools.MavenToPath(librariesPath, rawValue);
-                else if (rawValue.StartsWith("'") && rawValue.EndsWith("'"))
-                    processedValue = rawValue.Trim('\'');
-                else
-                    processedValue = rawValue;
-
-                placeholders[entry.Key] = processedValue;
+                if (Directory.Exists(work)) Directory.Delete(work, true);
             }
-            if (placeholders.ContainsKey("BINPATCH"))
-                placeholders["BINPATCH"] = clientLzmaPath;
-
-            return placeholders;
+            catch (IOException ex) { System.Diagnostics.Debug.WriteLine($"Forge 临时目录清理失败：{ex.Message}"); }
+            catch (UnauthorizedAccessException ex) { System.Diagnostics.Debug.WriteLine($"Forge 临时目录清理失败：{ex.Message}"); }
+            finally { gate.Release(); }
         }
+    }
 
-        #endregion
+    private async Task<bool> TryDownloadMappingsAsync(ForgePreparedInstall prepared, ForgeSeriesProcessor processor, ForgeProcessorTokens tokens,
+        string originalJar, CancellationToken token)
+    {
+        if (!processor.Jar.StartsWith("net.minecraftforge:installertools:", StringComparison.Ordinal) ||
+            !processor.Args.Contains("DOWNLOAD_MOJMAPS") || processor.Args.Contains("--sanitize")) return false;
+        var args = processor.Args.Select(tokens.Resolve).ToList();
+        string? Value(string flag)
+        {
+            var i = args.IndexOf(flag);
+            return i >= 0 && i + 1 < args.Count ? args[i + 1] : null;
+        }
+        if (Value("--task") != "DOWNLOAD_MOJMAPS" || Value("--side") != "client" ||
+            Value("--version") != prepared.Minecraft || Value("--output") != tokens.Key("MOJMAPS")) return false;
+        var metadata = Path.Combine(Path.GetDirectoryName(originalJar)!, "version.json");
+        if (!File.Exists(metadata)) return false;
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(metadata, token));
+        var root = document.RootElement;
+        if (!root.TryGetProperty("id", out var id) || id.GetString() != prepared.Minecraft ||
+            !root.TryGetProperty("downloads", out var downloads) || !downloads.TryGetProperty("client_mappings", out var mappings)) return false;
+        var url = mappings.GetProperty("url").GetString()!;
+        var hash = mappings.GetProperty("sha1").GetString()!;
+        var size = mappings.GetProperty("size").GetInt64();
+        var path = tokens.Key("MOJMAPS");
+        await _download.DownloadFile(url, path, token);
+        await ForgeFileVerifier.RequireAsync(path, [hash], size, token);
+        return true;
     }
 }

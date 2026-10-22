@@ -38,19 +38,11 @@ public static class Tools
         return sb.ToString();
     }
     /// <summary>
-    /// 基于主类名的模组加载器判断机制
+    /// 使用主类、加载器构件和参数识别身份；共享主类需要额外的清单证据。
     /// </summary>
-    public static ModEnum MainClassToModEnum(string mainClass)
+    public static ModEnum MainClassToModEnum(string mainClass, IEnumerable<string>? libraries = null, IEnumerable<string>? gameArguments = null)
     {
-        return mainClass switch
-        {
-            "net.minecraftforge.bootstrap.ForgeBootstrap" => ModEnum.forge,
-            "cpw.mods.bootstraplauncher.BootstrapLauncher" => ModEnum.neoforge,
-            "net.fabricmc.loader.impl.launch.knot.KnotClient" => ModEnum.fabric,
-            "org.quiltmc.loader.impl.launch.knot.KnotClient" => ModEnum.quilt,
-            "net.minecraft.client.main.Main" => ModEnum.none,
-            _ => ModEnum.none
-        };
+        return DefaultComponent.Mod.ModLoader.ModLoaderDetector.Detect(mainClass, libraries, gameArguments);
     }
     public static async Task CopyDirectoryAsync(string sourceDir, string destDir, CancellationToken token)
     {

@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OneLauncher.Core\OneLauncher.Core.csproj" />
+    <None Update="ProbeMod.java" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

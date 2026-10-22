@@ -9,7 +9,7 @@ namespace OneLauncher.Core.DefaultComponent.Downloader.DownloadMinecraftProvider
 
 internal interface IModLoaderConcreteProviders
 {
-    Task<List<NdDowItem>> GetDependencies();
+    Task<List<NdDowItem>> GetDependencies(Action<string>? reportStatus = null);
     Task RunInstaller(IProgress<string> Put,CancellationToken token)
     {
         /* 某些资源可能没有，提供一个默认啥都不干的实现 */

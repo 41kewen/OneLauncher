@@ -92,6 +92,7 @@ internal partial class DownloadPaneViewModel : BaseViewModel
         };
         DateTime lastUpdateTime = DateTime.MinValue;
         TimeSpan _updateInterval = TimeSpan.FromMilliseconds(50);
+        DownProgress? lastStage = null;
 
         return Task.Run(async () =>
         {
@@ -115,6 +116,8 @@ internal partial class DownloadPaneViewModel : BaseViewModel
                     var progressReporter = new Progress<(DownProgress d, int a, int b, string c)>(p =>
                         Dispatcher.UIThread.Post(() =>
                         {
+                            if (task.Status != TaskInfoStatus.Running)
+                                return;
                             double progressPercentage = (p.a == 0) ? 0 : (double)p.b / p.a * 100;
                             if (p.d == DownProgress.Done)
                             {
@@ -124,11 +127,11 @@ internal partial class DownloadPaneViewModel : BaseViewModel
                                 task.SetProgress("下载完成",100);
                                 task.SetDone();
                             }
-                            else if ((DateTime.UtcNow - lastUpdateTime) > _updateInterval)
+                            else if (p.d == DownProgress.Meta || p.d != lastStage || (DateTime.UtcNow - lastUpdateTime) > _updateInterval)
                             {
                                 Dp = p.d switch
                                 {
-                                    DownProgress.Meta => "准备元数据...",
+                                    DownProgress.Meta => p.c,
                                     DownProgress.DownAndInstModFiles => "下载并安装模组加载器...",
                                     DownProgress.DownLog4j2 => "下载日志配置...",
                                     DownProgress.DownLibs => "下载库文件...",
@@ -141,8 +144,9 @@ internal partial class DownloadPaneViewModel : BaseViewModel
                                 task.SetProgress(Dp, progressPercentage);
 
                                 lastUpdateTime = DateTime.UtcNow;
+                                lastStage = p.d;
                             }
-                            Fs = $"{p.b}/{p.a}";
+                            Fs = p.d == DownProgress.Meta ? "" : $"{p.b}/{p.a}";
                             FileName = p.c;
                         }));
                     // 执行下载
