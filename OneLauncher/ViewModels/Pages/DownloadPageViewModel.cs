@@ -30,8 +30,8 @@ internal partial class DownloadPageViewModel : BaseViewModel,IPageHost,IListTemp
         try
         {
             var versionInfos =
-                //await VersionsList.GetOrRefreshVersionListAsync();
-                _unitedCore.MojangVersionList;
+                await VersionsList.GetOrRefreshVersionListAsync();
+                //_unitedCore.MojangVersionList;
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 Items = new ObservableCollection<VersionBasicInfo>(versionInfos); // 安全地创建集合

@@ -40,7 +40,7 @@
                 <TextBlock Classes="pane-section-title" Text="安装选项"/>
                 <Border Classes="pane-surface" IsEnabled="{Binding !IsDownloading}">
                     <Grid ColumnDefinitions="Auto,*"
-                          RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                           ColumnSpacing="24"
                           RowSpacing="12">
                         <CheckBox Grid.Row="0" Grid.Column="0"
@@ -82,6 +82,13 @@
                         <CheckBox Grid.Row="4" Grid.ColumnSpan="2"
                                   IsChecked="{Binding IsJava}"
                                   Content="自动安装匹配的 Java 运行环境"/>
+                        <CheckBox Grid.Row="5" Grid.ColumnSpan="2"
+                                  IsEnabled="{Binding CanInstallRecommendedMods}"
+                                  IsChecked="{Binding InstallRecommendedMods}"
+                                  Content="一键安装推荐模组"/>
+                        <TextBlock Grid.Row="6" Grid.ColumnSpan="2" Classes="pane-help"
+                                   Text="选择模组加载器后可用。版本安装完成后，自动安装兼容的推荐模组及依赖，可在任务中心取消。"
+                                   TextWrapping="Wrap"/>
                     </Grid>
                 </Border>
 

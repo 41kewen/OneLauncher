@@ -67,6 +67,18 @@
                     </StackPanel>
                 </Border>
 
+                <TextBlock Classes="pane-section-title" Text="推荐模组"/>
+                <Border Classes="pane-surface">
+                    <StackPanel Spacing="8">
+                        <Button Classes="pane-secondary" Content="一键安装推荐模组"
+                                Command="{Binding InstallRecommendedModsCommand}" HorizontalAlignment="Left"/>
+                        <TextBlock Classes="pane-help" TextWrapping="Wrap"
+                                   Text="按此实例的游戏版本和加载器安装兼容的推荐模组及依赖，可在任务中心查看进度或取消。"/>
+                        <TextBlock Classes="pane-help" IsVisible="{Binding !CanInstallRecommendedMods}"
+                                   Text="仅支持 Fabric、Quilt、Forge 和 NeoForge 实例。" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
                 <TextBlock Classes="pane-section-title" Text="实例操作"/>
                 <Border Classes="pane-surface">
                     <StackPanel Orientation="Horizontal" Spacing="8">

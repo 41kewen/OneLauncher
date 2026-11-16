@@ -1,5 +1,6 @@
 ﻿using OneLauncher.Core.DefaultComponent.Downloader;
 using OneLauncher.Core.DefaultComponent.Downloader.DownloadMinecraftProviders;
+using OneLauncher.Core.DefaultComponent.Downloader.DownloadMinecraftProviders.ModSources.SpecifiedVersionConfig;
 using OneLauncher.Core.Global;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper;
@@ -112,7 +113,7 @@ public class ModpackImporter : IDisposable
 
             // --- 步骤 4: 仅在基础游戏或指定加载器版本缺失时安装 ---
             if (!IsBaseGameAndLoaderInstalled(packGameData, loaderType, loaderVersion))
-                await InstallBaseGameAsync(packGameData, progress, token);
+                await InstallBaseGameAsync(packGameData, parser, progress, token);
             token.ThrowIfCancellationRequested();
 
             // --- 步骤 5: 注册新的游戏实例并保存 ---
@@ -154,12 +155,22 @@ public class ModpackImporter : IDisposable
     /// <summary>
     /// 负责下载和安装 Minecraft 基础版和指定的 Mod 加载器。
     /// </summary>
-    private async Task InstallBaseGameAsync(GameData gameData, IProgress<(DownProgress Title, int AllFiles, int DownedFiles, string DowingFileName)> progress, CancellationToken token)
+    private async Task InstallBaseGameAsync(GameData gameData, MrpackParser parser, IProgress<(DownProgress Title, int AllFiles, int DownedFiles, string DowingFileName)> progress, CancellationToken token)
     {
+        SpecifiedFabricVersionConfig? fabricConfig = null;
+        if (gameData.ModLoader == ModEnum.fabric)
+        {
+            fabricConfig = new();
+            await fabricConfig.GetVersions(gameData.VersionId);
+            fabricConfig.SetLoaderVersion(parser.GetLoaderInfo().Version);
+            token.ThrowIfCancellationRequested();
+        }
         var downInfo = await DownloadInfo.Create(
             versionId: gameData.VersionId,
             modType: new ModType { IsFabric = gameData.ModLoader == ModEnum.fabric, IsNeoForge = gameData.ModLoader == ModEnum.neoforge, IsForge = gameData.ModLoader == ModEnum.forge, IsQuilt = gameData.ModLoader == ModEnum.quilt },
-            defaultGameData: gameData
+            defaultGameData: gameData,
+            fabricConfig: fabricConfig,
+            isDownloadFabricWithAPI: false
         );
 
         await UnitedCore.Core.VersionInstallerService.InstallNewVersion(downInfo, progress, token);

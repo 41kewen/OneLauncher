@@ -65,10 +65,11 @@ public class UnitedCore
 
     private sealed record LoggingDependencies(ExceptionFileLogManager Manager, ILogger<OlanException> Logger);
 
-    public static async Task<UnitedCore> Initialize()
+    public static async Task<UnitedCore> Initialize(bool isCommandMode = false)
     {
         _ = Logging.Value;
-        _ = AutoUpdate.CheckManifestUpdate();
+        if (!isCommandMode)
+            _ = AutoUpdate.CheckManifestUpdate();
         var versionListManager = new VersionListManager(Init.GameRootPath);
         await versionListManager.InitializeAsync();
 
@@ -97,11 +98,13 @@ public class UnitedCore
             MsalAuthenticator = msrl,
             JavaManager = javaManager
         };
-        _=Task.Run(async() =>
-        {
-           UnitedCore.Core.MojangVersionList = new(await VersionsList.GetOrRefreshVersionListAsync());
-        });
+        core.MojangVersionList = new();
         Core = core;
+        //if (!isCommandMode)
+        //    _ = Task.Run(async () =>
+        //    {
+        //        core.MojangVersionList = new(await VersionsList.GetOrRefreshVersionListAsync());
+        //    });
         return core;
     }
 }

@@ -17,7 +17,7 @@ public static partial class Init
     public const string ProjectWebsite = "https://github.com/lnetface/OneLauncher";
     public static Task<IServiceCollection> InitTask;
     //public static IServiceCollection Service { get; private set; }
-    public static string BasePath { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneLauncher");
+    public static string BasePath { get; private set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneLauncher");
     public static string GameRootPath
 #if DEBUG
     { get; set; }
@@ -43,8 +43,10 @@ public static partial class Init
     public static DBManager ConfigManger => ConfigManager;
     internal static DBManager ConfigManager { get; private set; }
     internal static Download Download { get; private set; }
-    public static async Task<IServiceCollection> Initialize(bool isCommandMode = false)
+    public static async Task<IServiceCollection> Initialize(bool isCommandMode = false, string? basePath = null)
     {
+        if (basePath != null)
+            BasePath = Path.GetFullPath(basePath);
         string diagnosticStep = "创建启动器数据目录";
         string diagnosticTarget = BasePath;
         try
@@ -81,7 +83,7 @@ public static partial class Init
             Download = downloadTool;
 
             diagnosticStep = "初始化核心组件";
-            var unitedCore = await UnitedCore.Initialize();
+            var unitedCore = await UnitedCore.Initialize(isCommandMode);
             services.AddSingleton<UnitedCore>(unitedCore);
 
             return services; 

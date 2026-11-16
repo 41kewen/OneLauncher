@@ -83,17 +83,19 @@ internal partial class DownloadPaneViewModel : BaseViewModel, IPaneHost
         NotifyCanExecuteChangedFor(nameof(ToDownloadCommand))]
     private TaskInfoStatus downloadStatus = TaskInfoStatus.Running;
     #region 数据绑定区
-    [ObservableProperty] public bool _IsQuilt;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanInstallRecommendedMods))] public bool _IsQuilt;
     [ObservableProperty] public bool _IsDownloadQuiltWithQSL = true;
     [ObservableProperty] public bool _IsAllowQuilt;
-    [ObservableProperty] public bool _IsForge;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanInstallRecommendedMods))] public bool _IsForge;
     [ObservableProperty] public bool _IsAllowForge;
     [ObservableProperty] public bool _IsUseRecommendedToInstallForge = true;
     [ObservableProperty] public bool _IsAllowFabric;
     [ObservableProperty] public bool _IsAllowNeoforge;
     [ObservableProperty] public string _VersionName;
-    [ObservableProperty] public bool _IsMod;
-    [ObservableProperty] public bool _IsNeoForge;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanInstallRecommendedMods))] public bool _IsMod;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanInstallRecommendedMods))] public bool _IsNeoForge;
+    [ObservableProperty] private bool installRecommendedMods;
+    public bool CanInstallRecommendedMods => IsMod || IsQuilt || IsForge || IsNeoForge;
     [ObservableProperty] public bool _IsAllowToUseBetaNeoforge = false;
     [ObservableProperty] public bool _IsDownloadFabricWithAPI = true;
     [ObservableProperty] public bool _IsJava;
@@ -112,6 +114,7 @@ internal partial class DownloadPaneViewModel : BaseViewModel, IPaneHost
     public async Task ToDownload()
     {
         if (!CanDownload()) return;
+        var shouldInstallRecommendedMods = InstallRecommendedMods && CanInstallRecommendedMods;
         var downloadTask = _unitedCore.TaskManager.CreateTask($"下载 MC {VersionName}");
         task = downloadTask;
         var cancellation = downloadTask.Token!.Token;
@@ -198,18 +201,11 @@ internal partial class DownloadPaneViewModel : BaseViewModel, IPaneHost
                 return info;
             }, cancellation);
             cancellation.ThrowIfCancellationRequested();
-            content.UserInfo.ForEach(async u =>
+            foreach (var u in content.UserInfo)
             {
-                try
-                {
-                    await _gameDataManager.AddGameDataAsync(u);
-                }
-                catch (Exception ex)
-                {
-                    if (ex is not OlanException)
-                        _ = new OlanException("保存下载实例失败", $"后台保存下载后的实例信息；实例ID={u.InstanceId}；实例目录={u.InstancePath}；索引文件={Init.GameRootPath}/instance/instance.json。原因：{ex.Message}", OlanExceptionAction.Warning, ex);
-                }
-            });
+                cancellation.ThrowIfCancellationRequested();
+                await _gameDataManager.AddGameDataAsync(u);
+            }
             cancellation.ThrowIfCancellationRequested();
             await _gameDataManager.SetDefaultInstanceAsync(content.UserInfo.FirstOrDefault()!.InstanceId);
             cancellation.ThrowIfCancellationRequested();
@@ -219,6 +215,11 @@ internal partial class DownloadPaneViewModel : BaseViewModel, IPaneHost
             downloadTask.SetDone();
             DownloadStatus = TaskInfoStatus.Finished;
             WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage($"“{content.UserInfo.FirstOrDefault()!.Name}”已成功创建并设为默认启动项。", openTaskCenterAfterClick: true));
+            if (shouldInstallRecommendedMods)
+            {
+                foreach (var instance in content.UserInfo.Where(instance => RecommendedModsInstallation.Supports(instance.ModLoader)))
+                    _ = RecommendedModsInstallation.InstallAsync(instance, _unitedCore.ResourceInstallerService, _unitedCore.TaskManager);
+            }
         }
         catch (Exception) when (cancellation.IsCancellationRequested)
         {

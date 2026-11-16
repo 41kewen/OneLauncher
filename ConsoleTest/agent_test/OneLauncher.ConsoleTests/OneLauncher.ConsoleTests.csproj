@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../OneLauncher.Console/Infrastructure/CommandArguments.cs" Link="Console/CommandArguments.cs" />
+    <Compile Include="../../../OneLauncher.Console/Commands/InstallGameVersion/InstallGameVersionOptions.cs" Link="Console/InstallGameVersionOptions.cs" />
+    <ProjectReference Include="../../../OneLauncher/OneLauncher.csproj" />
+  </ItemGroup>
+</Project>

@@ -13,6 +13,7 @@ using OneLauncher.Core.Global;
 using OneLauncher.Core.Global.ModelDataMangers;
 using OneLauncher.Core.Helper;
 using OneLauncher.Core.Helper.Models;
+using OneLauncher.Core.Services;
 using OneLauncher.ViewModel.Page;
 using OneLauncher.Views.ViewModels;
 using System;
@@ -28,6 +29,8 @@ internal partial class EditGameDataPaneViewModel : BaseViewModel, IPaneHost
 {
     private readonly GameDataManager _gameDataManager;
     private readonly AccountManager _accountManager;
+    private readonly ResourceInstallerService _resourceInstaller;
+    private readonly TaskManager _taskManager;
     private readonly GameData editingGameData;
     private bool _isInitializing = true;
     public Action OnPaneClose { get; init; } = () => { };
@@ -41,11 +44,15 @@ internal partial class EditGameDataPaneViewModel : BaseViewModel, IPaneHost
         GameData gameData,
         GameDataManager gameDataManager,
         AccountManager accountManager,
+        ResourceInstallerService resourceInstaller,
+        TaskManager taskManager,
         Action onCloseCallback
         )
     {
         this._gameDataManager = gameDataManager;
         this._accountManager = accountManager;
+        _resourceInstaller = resourceInstaller;
+        _taskManager = taskManager;
         OnPaneClose = onCloseCallback ?? (() => { });
         editingGameData = gameData;
         InstanceName = gameData.Name;
@@ -105,6 +112,12 @@ internal partial class EditGameDataPaneViewModel : BaseViewModel, IPaneHost
     }
     #endregion
     #region 高级选项
+    public bool CanInstallRecommendedMods => RecommendedModsInstallation.Supports(editingGameData.ModLoader);
+
+    [RelayCommand(CanExecute = nameof(CanInstallRecommendedMods))]
+    private Task InstallRecommendedMods() =>
+        RecommendedModsInstallation.InstallAsync(editingGameData, _resourceInstaller, _taskManager);
+
     [RelayCommand]
     private void OpenInstanceFolder()
     {

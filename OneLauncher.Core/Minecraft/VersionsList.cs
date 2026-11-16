@@ -40,7 +40,7 @@ public class VersionsList
 
         // 调用筛选方法，并更新全局的静态列表
         var releaseVersions = GetReleaseVersionList(fullManifest);
-        //Init.MojangVersionList = releaseVersions.ToList();
+        UnitedCore.Core.MojangVersionList = releaseVersions.ToList();
 
         return releaseVersions;
     }
