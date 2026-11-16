@@ -19,7 +19,7 @@ public class UnitedCore
     public required VersionListManager VersionListManager { get; init; }
     public required ResourceInstallerService ResourceInstallerService { get; init; }
     public required GameLaunchService GameLaunchService { get; init; }
-    public required List<VersionBasicInfo> MojangVersionList { get; set; }
+    public List<VersionBasicInfo> MojangVersionList { get; set; }
     public required AccountManager AccountManager { get; init; }
     public required GameDataManager GameDataManager { get; init; }
     public required MsalAuthenticator MsalAuthenticator { get; init; }
@@ -90,12 +90,17 @@ public class UnitedCore
             VersionInstallerService = new VersionInstallerService(versionListManager),
             ResourceInstallerService = new ResourceInstallerService(),
             GameLaunchService = new GameLaunchService(taskManager),
-            MojangVersionList = new (await VersionsList.GetOrRefreshVersionListAsync()),
+            // 不得await，否则初始化阶段网络异常会直接导致整个启动器崩溃
+            //MojangVersionList = new (await VersionsList.GetOrRefreshVersionListAsync()),
             AccountManager = accountManger,
             GameDataManager = gameDataManger,
             MsalAuthenticator = msrl,
             JavaManager = javaManager
         };
+        _=Task.Run(async() =>
+        {
+           UnitedCore.Core.MojangVersionList = new(await VersionsList.GetOrRefreshVersionListAsync());
+        });
         Core = core;
         return core;
     }

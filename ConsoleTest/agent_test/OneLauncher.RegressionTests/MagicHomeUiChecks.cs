@@ -75,7 +75,7 @@ internal static class MagicHomeUiChecks
         var classicLaunchPanel = page.GetVisualDescendants().OfType<Panel>().Single(p => p.Width == 300);
         Assert(classicLaunchPanel.IsVisible, "Default style must keep the right quick launch panel");
         var cardBorders = page.GetVisualDescendants().OfType<ListBoxItem>()
-            .Select(i => i.GetVisualDescendants().OfType<Border>().First(b => b.Width == 385)).ToArray();
+            .Select(i => i.GetVisualDescendants().OfType<Border>().First(b => b.Classes.Contains("home-section-card"))).ToArray();
         Assert(cardBorders.Length == 4 && cardBorders.All(b => b.BoxShadow.Count > 0 && b.BoxShadow[0].Blur > 0),
             "Home section cards must use the card-list shadow");
         var imagePath = Path.Combine(root, "background.png");
@@ -114,7 +114,7 @@ internal static class MagicHomeUiChecks
         Assert(sectionsScroll.VerticalScrollBarVisibility == Avalonia.Controls.Primitives.ScrollBarVisibility.Hidden,
             "Home section scroll bar must be hidden");
         var imageCards = page.GetVisualDescendants().OfType<ListBoxItem>()
-            .Select(i => i.GetVisualDescendants().OfType<Border>().First(b => b.Width == 385)).ToArray();
+            .Select(i => i.GetVisualDescendants().OfType<Border>().First(b => b.Classes.Contains("home-section-card"))).ToArray();
         Assert(imageCards.All(b => b.Background is ISolidColorBrush { Color.A: < 255 and > 128 }),
             "Cards on a custom background must use a translucent base color");
         Save(window, output, "home-magic-background.png");

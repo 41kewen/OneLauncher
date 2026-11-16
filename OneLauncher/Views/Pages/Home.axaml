@@ -32,12 +32,15 @@
 			<Setter Property="CornerRadius" Value="100"/>
 		</Style>
 
-		<!-- 默认样式中卡片跨越空白列以保持原有居中构图；魔法按钮样式中卡片靠左并为按钮让出空间。 -->
+		<!-- 默认样式中卡片填满启动区域左侧；魔法按钮样式中卡片保持固定宽度，为按钮让出空间。 -->
 		<Style Selector="ScrollViewer.home-sections">
 			<Setter Property="Grid.ColumnSpan" Value="2"/>
 		</Style>
 		<Style Selector="ScrollViewer.home-sections.magic">
 			<Setter Property="Grid.ColumnSpan" Value="1"/>
+		</Style>
+		<Style Selector="ScrollViewer.home-sections.magic Border.home-section-card">
+			<Setter Property="Width" Value="385"/>
 		</Style>
 		<!-- 外层 Border 由 card-list 样式提供阴影与悬停；内层负责圆角裁剪，避免裁掉外层阴影。 -->
 		<Style Selector="Border.home-card-clip">
@@ -88,6 +91,7 @@
 					<ScrollViewer Grid.Column="0" Classes="home-sections"
 								  Classes.magic="{Binding IsMagicButtonStyle}"
 								  VerticalScrollBarVisibility="Hidden"
+								  HorizontalScrollBarVisibility="Disabled"
 								  IsVisible="{Binding IsHomeSectionsVisible}">
 						<StackPanel>
 							<ListBox Classes="card-list" Classes.on-image="{Binding HasHomeBackground}">
@@ -98,7 +102,7 @@
 									</ItemsPanelTemplate>
 								</ListBox.ItemsPanel>
 								<ListBoxItem IsVisible="{Binding IsNewsSectionVisible}">
-									<Border Classes="home-news-card" Width="385" Height="240">
+									<Border Classes="home-section-card home-news-card" Height="240">
 									<Border Classes="home-card-clip">
 										<Panel>
 											<Image asyncImageLoader:ImageLoader.Source="{Binding CurrentNews.ImageUrl}" Stretch="UniformToFill" />
@@ -176,7 +180,7 @@
 								</ListBoxItem>
 
 								<ListBoxItem IsVisible="{Binding IsTaskCenterSectionVisible}">
-									<Border Width="385" MinHeight="120">
+									<Border Classes="home-section-card" MinHeight="120">
 									<Border Classes="home-card-clip">
 										<Grid ColumnDefinitions="5, *, Auto">
 											<Border Grid.Column="0" Background="{DynamicResource SuccessBrush}"/>
@@ -203,7 +207,7 @@
 								</ListBoxItem>
 
 								<ListBoxItem IsVisible="{Binding IsPowerPlaySectionVisible}">
-									<Border Width="385" Height="120">
+									<Border Classes="home-section-card" Height="120">
 									<Border Classes="home-card-clip">
 										<Grid ColumnDefinitions="5, *, Auto">
 											<Border Grid.Column="0" Background="{DynamicResource AccentBrush}"/>
@@ -230,7 +234,7 @@
 								</ListBoxItem>
 
 								<ListBoxItem IsVisible="{Binding IsImportSectionVisible}">
-									<Border Width="385" MinHeight="160">
+									<Border Classes="home-section-card" MinHeight="160">
 									<Border Classes="home-card-clip">
 										<Grid ColumnDefinitions="5, *">
 											<Border Grid.Column="0" Background="{DynamicResource AccentBrush}"/>
