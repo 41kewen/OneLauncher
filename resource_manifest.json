@@ -5,7 +5,7 @@
         "值为 null、缺失或空列表表示忽略；多源时以 Revision 最大者为准。"
     ],
     "Revision": 1,
-    "LatestLauncherVersion": "1.6.1.1",
+    "LatestLauncherVersion": "1.6.2.0",
     "Announcement": null,
     "Resources": {
         "WindowsUpdater": [
