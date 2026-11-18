@@ -161,6 +161,13 @@
 		  <StackPanel Classes="settings-section" IsVisible="{Binding IsGameLaunchSectionVisible}">
 			  <TextBlock Classes="section-title" Text="游戏启动"/>
 			  <Separator Classes="section-divider"/>
+              <StackPanel Margin="0,6,0,0" Spacing="4">
+                  <TextBlock Text="联机时自动启动游戏"/>
+                  <ToggleSwitch IsChecked="{Binding AutoLaunchGameOnPowerPlay, Mode=TwoWay}"
+                                IsEnabled="{Binding !IsSavingPowerPlaySetting}"
+                                OnContent="开启" OffContent="关闭"/>
+                  <TextBlock Classes="page-subtitle" Text="关闭后，创建或加入房间仅建立联机连接，游戏需手动启动。"/>
+              </StackPanel>
 			  <StackPanel Margin="0,6,0,0">
 				  <TextBlock Text="Jvm参数优化选项"/>
 				  

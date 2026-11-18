@@ -174,6 +174,8 @@ public class ResourceCollection
 }
 public class AppSettings : IJsonOnDeserialized
 {
+    // 创建或加入联机房间时自动启动游戏；旧配置保持原有行为。
+    public bool AutoLaunchGameOnPowerPlay { get; set; } = true;
     // 下载
     public int MaximumDownloadThreads { get; set; } = 24;
     public int MaximumSha1Threads { get; set; } = 24;

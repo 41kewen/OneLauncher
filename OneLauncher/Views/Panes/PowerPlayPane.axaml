@@ -35,7 +35,7 @@
                     <TextBlock Classes="pane-section-title" Text="创建房间"/>
                     <Border Classes="pane-surface">
                         <StackPanel Spacing="10">
-                            <TextBlock Classes="pane-label" Text="要启动的游戏实例"/>
+                            <TextBlock Classes="pane-label" Text="房间使用的游戏实例"/>
                             <ComboBox Classes="pane-field" ItemsSource="{Binding AvailableGameData}"
                                       SelectedItem="{Binding SelectedHostGameData}"
                                       PlaceholderText="选择游戏实例" IsEnabled="{Binding !IsConnected}">
@@ -85,10 +85,10 @@
 
         <Panel Grid.Row="3" Margin="0,16,0,0">
             <Panel IsVisible="{Binding !IsConnected}">
-                <Button Classes="pane-primary" Content="创建房间并启动游戏"
+                <Button Classes="pane-primary" Content="{Binding HostButtonText}"
                         IsEnabled="{Binding CanStart}" Command="{Binding HostCommand}"
                         IsVisible="{Binding IsHostModeChecked}" HorizontalAlignment="Stretch"/>
-                <Button Classes="pane-primary" Content="加入房间并启动游戏"
+                <Button Classes="pane-primary" Content="{Binding JoinButtonText}"
                         IsEnabled="{Binding CanStart}" Command="{Binding JoinAndLaunchCommand}"
                         IsVisible="{Binding IsJoinModeChecked}" HorizontalAlignment="Stretch"/>
             </Panel>

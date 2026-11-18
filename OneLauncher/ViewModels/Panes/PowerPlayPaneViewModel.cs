@@ -27,6 +27,10 @@ public partial class PowerPlayPaneViewModel : BaseViewModel, IPaneHost
 {
     private readonly UnitedCore _unitedCore;
     private readonly GameDataManager _gameDataManager;
+    private readonly DBManager _dbManager;
+    private Action? _launchOnConnectionEstablished;
+    public string HostButtonText => _dbManager.Data.OlanSettings.AutoLaunchGameOnPowerPlay ? "创建房间并启动游戏" : "创建房间";
+    public string JoinButtonText => _dbManager.Data.OlanSettings.AutoLaunchGameOnPowerPlay ? "加入房间并启动游戏" : "加入房间";
     public Action OnPaneClose { get; init; } = () => { };
     ~PowerPlayPaneViewModel()
     {
@@ -34,8 +38,9 @@ public partial class PowerPlayPaneViewModel : BaseViewModel, IPaneHost
         _gameDataManager.OnDataChanged -= OnListRefreshing;
         Stop();
     }
-    public PowerPlayPaneViewModel(IConnectService connectService, MCTPower mainPower, GameDataManager gameDataManager, UnitedCore unitedCore, Action? onCloseCallback = null)
+    public PowerPlayPaneViewModel(IConnectService connectService, MCTPower mainPower, GameDataManager gameDataManager, UnitedCore unitedCore, DBManager dbManager, Action? onCloseCallback = null)
     {
+        _dbManager = dbManager;
         _unitedCore = unitedCore;
         this._gameDataManager = gameDataManager;
         PropertyChanged += (s, e) =>
@@ -105,7 +110,8 @@ public partial class PowerPlayPaneViewModel : BaseViewModel, IPaneHost
             HostRoomCode = finalRoomCode;
             IsConnected = true;
             connectService.StartAsHost(p2pNodeName, null);
-            _ = Game.EasyGameLauncher(_unitedCore, SelectedHostGameData, null, false);
+            if (_dbManager.Data.OlanSettings.AutoLaunchGameOnPowerPlay)
+                _ = Game.EasyGameLauncher(_unitedCore, SelectedHostGameData, null, false);
         }
         catch (OlanException olanEx)
         {
@@ -157,11 +163,11 @@ public partial class PowerPlayPaneViewModel : BaseViewModel, IPaneHost
             LocalServerAddress = $"127.0.0.1:{localPort}";
             IsConnected = true;
 
-            if (isMCTMode)
+            if (isMCTMode || !_dbManager.Data.OlanSettings.AutoLaunchGameOnPowerPlay)
             {
                 // **纯MCT兼容模式：只启动P2P，不启动游戏**
                 connectService.Join(null, p2pNodeName, localPort, destPort, null, null, null);
-                LogMessage($"已进入MCT兼容模式，仅启动P2P连接服务，目标节点: {p2pNodeName}");
+                LogMessage($"仅启动P2P连接服务，目标节点: {p2pNodeName}；请手动启动游戏并连接到 {LocalServerAddress}");
             }
             else
             {
@@ -191,14 +197,18 @@ public partial class PowerPlayPaneViewModel : BaseViewModel, IPaneHost
                 }
 
                 // 启动P2P
-                mainPower.ConnectionEstablished += () =>
+                _launchOnConnectionEstablished = () =>
                 {
+                    ClearLaunchOnConnectionEstablished();
+                    if (!_dbManager.Data.OlanSettings.AutoLaunchGameOnPowerPlay)
+                        return;
                     _ = Game.EasyGameLauncher(_unitedCore, instanceToLaunch, new ServerInfo
                     {
                         Ip = "127.0.0.1",
                         Port = checked((ushort)localPort)
                     }, false);
                 };
+                mainPower.ConnectionEstablished += _launchOnConnectionEstablished;
 
                 connectService.Join(null, p2pNodeName, localPort, destPort, null, null, null);
                 LogMessage($"P2P启动，准备连接到 {p2pNodeName} 并启动游戏...");
@@ -222,11 +232,19 @@ public partial class PowerPlayPaneViewModel : BaseViewModel, IPaneHost
     [RelayCommand]
     private void Stop()
     {
+        ClearLaunchOnConnectionEstablished();
         mainPower.Dispose();
         IsConnected = false;
         HostRoomCode = string.Empty;
         LocalServerAddress = string.Empty;
         LogMessage("连接已断开。");
+    }
+
+    private void ClearLaunchOnConnectionEstablished()
+    {
+        if (_launchOnConnectionEstablished != null)
+            mainPower.ConnectionEstablished -= _launchOnConnectionEstablished;
+        _launchOnConnectionEstablished = null;
     }
 
     [RelayCommand]

@@ -12,7 +12,6 @@ using OneLauncher.Core.Helper.Models;
 using OneLauncher.ViewModel.Page;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -25,6 +24,8 @@ internal partial class InstanceModItem : BaseViewModel
     public ModInfo info;
     [ObservableProperty]
     public Bitmap icon;
+    public string Description => Info.Description;
+    public bool HasVersion => !info.IsUnknown && !string.IsNullOrWhiteSpace(Info.Version);
     public bool ModEnabledManager
     {
         get => Info.IsEnabled;
@@ -61,9 +62,15 @@ internal partial class InstanceModItem : BaseViewModel
 }
 internal partial class GameDataModsManagerPaneViewModel : BaseViewModel, IPaneHost
 {
-    // 存放包装后的 Mod 列表
+    // 完整列表保留所有实际文件，筛选仅更新显示列表。
     [ObservableProperty]
-    private List<InstanceModItem> mods;
+    private List<InstanceModItem> allMods = new();
+
+    [ObservableProperty]
+    private List<InstanceModItem> mods = new();
+
+    [ObservableProperty]
+    private string? searchText = string.Empty;
 
     private readonly GameData _gameData;
     private readonly InstanceModService _modService;
@@ -75,7 +82,7 @@ internal partial class GameDataModsManagerPaneViewModel : BaseViewModel, IPaneHo
         if(Design.IsDesignMode)
         {
             // 设计时数据
-            Mods = new List<InstanceModItem>
+            AllMods = new List<InstanceModItem>
             {
                 //new InstanceModItem(new ModInfo { Id = "mod1", Name = "Mod 1", Version = "1.0", Description = "这是一个测试Mod", IsEnabled = true }),
                 //new InstanceModItem(new ModInfo { Id = "mod2", Name = "Mod 2", Version = "1.1", Description = "这是另一个测试Mod", IsEnabled = false }),
@@ -94,8 +101,27 @@ internal partial class GameDataModsManagerPaneViewModel : BaseViewModel, IPaneHo
     [RelayCommand]
     private async Task RefreshModsAsync()
     {
-        Mods = (await _modService.GetModsAsync()).Select(x => new InstanceModItem(x,_modService)).ToList();
+        AllMods = (await _modService.GetModsAsync()).Select(x => new InstanceModItem(x,_modService)).ToList();
     }
+
+    partial void OnAllModsChanged(List<InstanceModItem> value) => FilterMods();
+
+    partial void OnSearchTextChanged(string? value) => FilterMods();
+
+    private void FilterMods()
+    {
+        var keyword = SearchText?.Trim();
+        Mods = string.IsNullOrEmpty(keyword)
+            ? AllMods.ToList()
+            : AllMods.Where(mod =>
+                ContainsKeyword(mod.Info.Name, keyword) ||
+                ContainsKeyword(mod.Info.Id, keyword) ||
+                ContainsKeyword(mod.Description, keyword) ||
+                ContainsKeyword(mod.Info.fileName, keyword)).ToList();
+    }
+
+    private static bool ContainsKeyword(string? text, string keyword) =>
+        text?.Contains(keyword, StringComparison.OrdinalIgnoreCase) == true;
 
     [RelayCommand]
     private void OpenModsFolder()

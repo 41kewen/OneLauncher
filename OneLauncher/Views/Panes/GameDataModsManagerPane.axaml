@@ -8,7 +8,7 @@
              x:DataType="vm:GameDataModsManagerPaneViewModel"
              x:CompileBindings="True"
              x:Class="OneLauncher.Views.Panes.GameDataModsManagerPane">
-    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="20">
         <controls:PaneHeader Grid.Row="0" Title="模组管理" BackCommand="{Binding ClosePaneCommand}">
             <controls:PaneHeader.TrailingContent>
                 <Button Classes="pane-toolbar" Command="{Binding RefreshModsCommand}">
@@ -21,7 +21,12 @@
         </controls:PaneHeader>
         <Separator Grid.Row="1" Classes="pane-divider"/>
 
-        <ScrollViewer Grid.Row="2">
+        <TextBox Grid.Row="2" Classes="search-field" Margin="0,0,0,12"
+                 Watermark="搜索模组名称、ID、描述或文件名"
+                 Text="{Binding SearchText, Mode=TwoWay}"
+                 AutomationProperties.Name="搜索模组"/>
+
+        <ScrollViewer Grid.Row="3">
             <ItemsControl ItemsSource="{Binding Mods}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:InstanceModItem">
@@ -32,8 +37,9 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Spacing="3">
                                     <TextBlock Text="{Binding Info.Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Classes="pane-help" Text="{Binding Info.Description}" MaxLines="2" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Classes="pane-help" Text="{Binding Info.Version}"/>
+                                    <TextBlock Classes="pane-help" Text="{Binding Info.Description}" MaxLines="2" TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding Info.Description}"/>
+                                    <TextBlock Classes="pane-help" Text="{Binding Info.Version}" IsVisible="{Binding HasVersion}"/>
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="2" IsChecked="{Binding ModEnabledManager}" VerticalAlignment="Center"/>
                             </Grid>
@@ -43,7 +49,7 @@
             </ItemsControl>
         </ScrollViewer>
 
-        <Button Grid.Row="3" Classes="pane-secondary" Content="打开 Mods 文件夹"
+        <Button Grid.Row="4" Classes="pane-secondary" Content="打开 Mods 文件夹"
                 Command="{Binding OpenModsFolderCommand}" HorizontalAlignment="Stretch" Margin="0,16,0,0"/>
     </Grid>
 </UserControl>

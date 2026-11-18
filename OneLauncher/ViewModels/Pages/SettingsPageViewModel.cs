@@ -55,6 +55,45 @@ internal partial class SettingsPageViewModel : BaseViewModel, IPageHost, IListTe
     public bool IsRuntimeSectionVisible => SelectedSettingsCategory is "全部设置" or "运行环境";
     #endregion
 
+    [ObservableProperty]
+    private bool autoLaunchGameOnPowerPlay = true;
+
+    [ObservableProperty]
+    private bool isSavingPowerPlaySetting;
+
+    partial void OnAutoLaunchGameOnPowerPlayChanged(bool value)
+    {
+#if DEBUG
+        if (Design.IsDesignMode)
+            return;
+#endif
+        if (!IsSavingPowerPlaySetting)
+            _ = SavePowerPlaySettingAsync(value);
+    }
+
+    private async Task SavePowerPlaySettingAsync(bool value)
+    {
+        var settings = _dbManger.Data.OlanSettings;
+        var previousValue = settings.AutoLaunchGameOnPowerPlay;
+        IsSavingPowerPlaySetting = true;
+        try
+        {
+            settings.AutoLaunchGameOnPowerPlay = value;
+            await _dbManger.Save();
+            WeakReferenceMessenger.Default.Send(new MainWindowShowFlyoutMessage("联机自动启动游戏设置已保存", NotificationType.Success));
+        }
+        catch (Exception ex)
+        {
+            settings.AutoLaunchGameOnPowerPlay = previousValue;
+            AutoLaunchGameOnPowerPlay = previousValue;
+            await ShowSettingsException(ex);
+        }
+        finally
+        {
+            IsSavingPowerPlaySetting = false;
+        }
+    }
+
     #region 启动参数优化选项
     [ObservableProperty]
     public bool isM1, isM2, isM3;
@@ -846,6 +885,7 @@ internal partial class SettingsPageViewModel : BaseViewModel, IPageHost, IListTe
         {
             // 使用注入的实例来初始化属性
             showIdentifiers = _dbManger.Data.OlanSettings.OlanUISettings.ShowIdentifiers;
+            autoLaunchGameOnPowerPlay = _dbManger.Data.OlanSettings.AutoLaunchGameOnPowerPlay;
             LeftButtonListSpacing = _dbManger.Data.OlanSettings.OlanUISettings.LeftButtonListSpacing;
             _ = RefList();
             LoadHomeSettings(_dbManger.Data.OlanSettings);

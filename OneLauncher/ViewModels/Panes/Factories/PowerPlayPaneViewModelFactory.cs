@@ -15,8 +15,10 @@ internal class PowerPlayPaneViewModelFactory
 {
     private readonly GameDataManager _gameDataManager;
     private readonly UnitedCore _unitedCore;
-    public PowerPlayPaneViewModelFactory(UnitedCore unitedCore)
+    private readonly DBManager _dbManager;
+    public PowerPlayPaneViewModelFactory(UnitedCore unitedCore, DBManager dbManager)
     {
+        _dbManager = dbManager;
         _gameDataManager = unitedCore.GameDataManager;
         _unitedCore = unitedCore;
     }
@@ -24,7 +26,7 @@ internal class PowerPlayPaneViewModelFactory
     {
         var mctPower = await MCTPower.InitializationAsync();
         var connectService = new P2PMode(mctPower);
-        var viewModel = new PowerPlayPaneViewModel(connectService, mctPower, _gameDataManager, _unitedCore, onCloseCallback);
+        var viewModel = new PowerPlayPaneViewModel(connectService, mctPower, _gameDataManager, _unitedCore, _dbManager, onCloseCallback);
         return viewModel;
     }
 }

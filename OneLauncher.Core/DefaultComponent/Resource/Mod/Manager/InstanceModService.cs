@@ -36,12 +36,13 @@ public class InstanceModService
             ModInfo? modInfo = await ModInfoGetter.GetModInfoAsync(file);
             modInfos.Add(modInfo ?? new ModInfo
             {
-                Id = "未知标识符",
+                Id = "未知模组",
                 Version = "未知版本",
-                Name = "未知名称",
-                Description = "未知描述",
+                Name = "未知模组",
+                Description = Path.GetFileName(file),
                 Icon = null,
                 IsEnabled = false,
+                IsUnknown = true,
                 fileName = file
             });
         }
