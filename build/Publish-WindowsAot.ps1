@@ -21,6 +21,13 @@ try {
         $env:PATH = $toolBin + ';' + $env:PATH
     }
     try {
+        # NativeSingleFile validates every file under PublishDir. Remove output
+        # from previous publishes so stale project runtime files cannot fail the
+        # single-file check.
+        $publishDir = Join-Path $workspacePath 'OneLauncher.Desktop/bin/Release/net10.0/publish'
+        if (Test-Path -LiteralPath $publishDir) {
+            Remove-Item -LiteralPath $publishDir -Recurse -Force
+        }
         # The pubxml owns RID, build mode and PublishDir.
         dotnet publish OneLauncher.Desktop/OneLauncher.Desktop.csproj "-p:PublishProfile=$PublishProfile" `
             --artifacts-path "build/output/$PublishProfile" --disable-build-servers
