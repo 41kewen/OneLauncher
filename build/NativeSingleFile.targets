@@ -18,7 +18,7 @@
           Condition="'$(OneLauncherNativeSingleFile)' == 'true'">
     <ItemGroup>
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
-                             Condition="'%(Filename)%(Extension)' == 'msalruntime.dll' or '%(Extension)' == '.pdb'" />
+                             Condition="'%(Filename)%(Extension)' == 'msalruntime.dll' or '%(Extension)' == '.pdb' or '%(Filename)%(Extension)' == 'OneLauncher.Console.runtimeconfig.json'" />
     </ItemGroup>
   </Target>
   <Target Name="VerifyOneLauncherSingleFile" AfterTargets="StaticLinkAvaloniaCleanDynamicAssets"
