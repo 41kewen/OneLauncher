@@ -124,12 +124,22 @@ public class AutoUpdate
 #if ONELAUNCHER_TARGET_WINDOWS
             var path = Path.Combine(Init.BasePath, "install.ps1");
             await Init.Download.DownloadFile(updaterSources, path);
+            string executablePath = Process.GetCurrentProcess().MainModule?.FileName
+                ?? throw new InvalidOperationException("无法确定当前启动器路径。");
             using var process = new Process();
             process.StartInfo = new ProcessStartInfo()
             {
                 FileName = "powershell.exe",
-                Arguments = $"{path} update {Process.GetCurrentProcess()!.MainModule!.FileName}"
+                UseShellExecute = false,
+                CreateNoWindow = true
             };
+            process.StartInfo.ArgumentList.Add("-NoProfile");
+            process.StartInfo.ArgumentList.Add("-ExecutionPolicy");
+            process.StartInfo.ArgumentList.Add("Bypass");
+            process.StartInfo.ArgumentList.Add("-File");
+            process.StartInfo.ArgumentList.Add(path);
+            process.StartInfo.ArgumentList.Add("update");
+            process.StartInfo.ArgumentList.Add(executablePath);
             process.Start();
 #endif
         }
