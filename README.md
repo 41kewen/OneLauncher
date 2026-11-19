@@ -9,7 +9,7 @@
 在 Windows PowerShell 中运行：
 
 ```powershell
-Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/zhweaa/OneLauncher/master/OneLauncher.Desktop/install.ps1'))
+Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/lnetface/OneLauncher/master/build/install.ps1'))
 ```
 
 安装脚本可选择仅下载启动器，或同时安装 .NET 10 Desktop Runtime 与 Java 21。
